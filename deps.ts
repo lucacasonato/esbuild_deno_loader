@@ -1,5 +1,4 @@
-// @deno-types="https://gist.githubusercontent.com/lucacasonato/56de2f1d7f212b0519e5e0b6d777b327/raw/6d1c68692fae59646b8366459580abba421373d8/mod.d.ts"
-import * as esbuild from "https://gist.githubusercontent.com/lucacasonato/56de2f1d7f212b0519e5e0b6d777b327/raw/6d1c68692fae59646b8366459580abba421373d8/mod.js";
+import type * as esbuild from "https://deno.land/x/esbuild@v0.11.19/mod.d.ts";
 export { esbuild };
 export {
   fromFileUrl,

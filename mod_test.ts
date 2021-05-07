@@ -1,5 +1,5 @@
 import { denoPlugin } from "./mod.ts";
-import { esbuild } from "./deps.ts";
+import { esbuild } from "./test_deps.ts";
 import { assert, assertEquals } from "./test_deps.ts";
 
 function test(name: string, fn: () => Promise<void>) {
