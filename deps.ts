@@ -1,5 +1,5 @@
 import type * as esbuild from "https://deno.land/x/esbuild@v0.11.19/mod.d.ts";
-export { esbuild };
+export type { esbuild };
 export {
   fromFileUrl,
   resolve,
