@@ -15,9 +15,9 @@ export async function load(
     case "data:":
       return await loadWithFetch(url);
     case "file:": {
-      throw new TypeError(
-        "file:// URLs are not supported in the portable loader.",
-      );
+      const res = await loadWithFetch(url);
+      res.watchFiles = [fromFileUrl(url.href)];
+      return res;
     }
   }
   return null;
