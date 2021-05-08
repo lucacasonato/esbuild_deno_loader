@@ -36,9 +36,10 @@ async function loadWithFetch(
     );
   }
 
+  const contentType = resp.headers.get("content-type");
   const mediaType = mapContentType(
     new URL(resp.url || specifierRaw),
-    resp.headers.get("content-type"),
+    contentType,
   );
   const contents = new Uint8Array(await resp.arrayBuffer());
 
@@ -57,7 +58,9 @@ async function loadWithFetch(
       loader = "tsx";
       break;
     default:
-      throw new Error(`Unhandled media type ${mediaType}.`);
+      throw new Error(
+        `Unhandled media type ${mediaType}. Content type is ${contentType}.`,
+      );
   }
 
   return { contents, loader };
