@@ -113,11 +113,11 @@ function mapJsLikeExtension(
 ): deno.MediaType {
   const path = specifier.pathname;
   switch (extname(path)) {
-    case "jsx":
+    case ".jsx":
       return "JSX";
-    case "tsx":
+    case ".tsx":
       return "TSX";
-    case "ts":
+    case ".ts":
       if (path.endsWith(".d.ts")) {
         return "Dts";
       } else {
@@ -130,6 +130,7 @@ function mapJsLikeExtension(
 
 function mediaTypeFromSpecifier(specifier: URL): deno.MediaType {
   const path = specifier.pathname;
+  console.log("mediaTypeFromSpecifier", path, extname(path));
   switch (extname(path)) {
     case "":
       if (path.endsWith("/.tsbuildinfo")) {
@@ -137,27 +138,27 @@ function mediaTypeFromSpecifier(specifier: URL): deno.MediaType {
       } else {
         return "Unknown";
       }
-    case "ts":
+    case ".ts":
       if (path.endsWith(".d.ts")) {
         return "Dts";
       } else {
         return "TypeScript";
       }
-    case "tsx":
+    case ".tsx":
       return "TSX";
-    case "js":
-    case "mjs":
-    case "cjs":
+    case ".js":
+    case ".mjs":
+    case ".cjs":
       return "JavaScript";
-    case "jsx":
+    case ".jsx":
       return "JSX";
-    case "json":
+    case ".json":
       return "Json";
-    case "wasm":
+    case ".wasm":
       return "Wasm";
-    case "tsbuildinfo":
+    case ".tsbuildinfo":
       return "TsBuildInfo";
-    case "map":
+    case ".map":
       return "SourceMap";
     default:
       return "Unknown";
