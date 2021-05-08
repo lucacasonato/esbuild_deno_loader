@@ -130,7 +130,6 @@ function mapJsLikeExtension(
 
 function mediaTypeFromSpecifier(specifier: URL): deno.MediaType {
   const path = specifier.pathname;
-  console.log("mediaTypeFromSpecifier", path, extname(path));
   switch (extname(path)) {
     case "":
       if (path.endsWith("/.tsbuildinfo")) {
