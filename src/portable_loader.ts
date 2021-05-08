@@ -37,7 +37,7 @@ async function loadWithFetch(
   }
 
   const mediaType = mapContentType(
-    new URL(resp.url),
+    new URL(resp.url || specifierRaw),
     resp.headers.get("content-type"),
   );
   const contents = new Uint8Array(await resp.arrayBuffer());
