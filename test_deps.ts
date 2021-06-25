@@ -1,5 +1,5 @@
-// @deno-types="https://deno.land/x/esbuild@v0.11.19/mod.d.ts"
-import * as esbuild from "https://deno.land/x/esbuild@v0.11.19/mod.js";
+// @deno-types="https://deno.land/x/esbuild@v0.12.9/mod.d.ts"
+import * as esbuild from "https://deno.land/x/esbuild@v0.12.9/mod.js";
 export { esbuild };
 export {
   assert,
