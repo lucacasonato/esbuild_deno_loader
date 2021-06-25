@@ -8,7 +8,7 @@ This example bundles an entrypoint into a single ESM output.
 
 ```js
 import * as esbuild from "https://deno.land/x/esbuild@v0.12.9/mod.js";
-import { denoPlugin } from "https://deno.land/x/esbuild_plugin_deno@0.1.0/mod.ts";
+import { denoPlugin } from "https://deno.land/x/esbuild_deno_loader@0.1.1/mod.ts";
 
 await esbuild.build({
   plugins: [denoPlugin()],
