@@ -6,4 +6,8 @@ export {
   toFileUrl,
 } from "https://deno.land/std@0.95.0/path/mod.ts";
 export { basename, extname } from "https://deno.land/std@0.95.0/path/posix.ts";
-export * as importmap from "https://esm.sh/@import-maps/resolve@1.0.1";
+export {
+  resolveImportMap,
+  resolveModuleSpecifier,
+} from "https://deno.land/x/importmap@0.2.0/mod.ts";
+export type { ImportMap } from "https://deno.land/x/importmap@0.2.0/mod.ts";

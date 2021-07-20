@@ -1,4 +1,11 @@
-import { esbuild, importmap, resolve, toFileUrl } from "./deps.ts";
+import {
+  esbuild,
+  ImportMap,
+  resolve,
+  resolveImportMap,
+  resolveModuleSpecifier,
+  toFileUrl,
+} from "./deps.ts";
 import { load as nativeLoad } from "./src/native_loader.ts";
 import { load as portableLoad } from "./src/portable_loader.ts";
 import { ModuleEntry } from "./src/deno.ts";
@@ -26,13 +33,13 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
     name: "deno",
     setup(build) {
       const infoCache = new Map<string, ModuleEntry>();
-      let importMap: importmap.ParsedImportMap | null = null;
+      let importMap: ImportMap | null = null;
 
       build.onStart(async function onStart() {
         if (options.importMapFile !== undefined) {
           const url = toFileUrl(resolve(options.importMapFile));
           const txt = await Deno.readTextFile(url);
-          importMap = importmap.parseFromString(txt, url);
+          importMap = resolveImportMap(JSON.parse(txt), url);
         } else {
           importMap = null;
         }
@@ -47,12 +54,12 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
         const referrer = args.importer || resolveDir;
         let resolved: URL;
         if (importMap !== null) {
-          const res = importmap.resolve(
+          const res = resolveModuleSpecifier(
             args.path,
             importMap,
             new URL(referrer) || undefined,
           );
-          resolved = res.resolvedImport;
+          resolved = new URL(res);
         } else {
           resolved = new URL(args.path, referrer);
         }
