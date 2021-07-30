@@ -3,7 +3,6 @@ import { esbuild } from "./test_deps.ts";
 import { assert, assertEquals } from "./test_deps.ts";
 
 const ALL = ["native", "portable"] as const;
-const ONLY_NATIVE = ["native"] as const;
 
 function test(
   name: string,
@@ -40,7 +39,7 @@ test("remote ts", ALL, async (loader) => {
   assertEquals(digest, "8843d7f92416211de9ebb963ff4ce28125932878");
 });
 
-test("local ts", ONLY_NATIVE, async (loader) => {
+test("local ts", ALL, async (loader) => {
   const res = await esbuild.build({
     plugins: [denoPlugin({ loader })],
     write: false,
@@ -71,7 +70,7 @@ test("remote js", ALL, async (loader) => {
   assertEquals(bool, "asd");
 });
 
-test("local js", ONLY_NATIVE, async (loader) => {
+test("local js", ALL, async (loader) => {
   const res = await esbuild.build({
     plugins: [denoPlugin({ loader })],
     write: false,
@@ -102,7 +101,7 @@ test("remote jsx", ALL, async (loader) => {
   assertEquals(m.default, "foo");
 });
 
-test("local jsx", ONLY_NATIVE, async (loader) => {
+test("local jsx", ALL, async (loader) => {
   const res = await esbuild.build({
     plugins: [denoPlugin({ loader })],
     write: false,
@@ -133,7 +132,7 @@ test("remote tsx", ALL, async (loader) => {
   assertEquals(m.default, "foo");
 });
 
-test("local tsx", ONLY_NATIVE, async (loader) => {
+test("local tsx", ALL, async (loader) => {
   const res = await esbuild.build({
     plugins: [denoPlugin({ loader })],
     write: false,
@@ -165,7 +164,7 @@ test("bundle remote imports", ALL, async (loader) => {
   assert(v4.validate(v4.generate()));
 });
 
-test("bundle import map", ONLY_NATIVE, async (loader) => {
+test("bundle import map", ALL, async (loader) => {
   const res = await esbuild.build({
     plugins: [
       denoPlugin({ importMapFile: "./testdata/importmap.json", loader }),
