@@ -15,7 +15,7 @@ export async function load(
     case "data:":
       return await loadWithFetch(url);
     case "file:": {
-      const res = await loadWithFetch(url);
+      const res = await loadWithReadFile(url);
       res.watchFiles = [fromFileUrl(url.href)];
       return res;
     }
@@ -37,33 +37,44 @@ async function loadWithFetch(
   }
 
   const contentType = resp.headers.get("content-type");
-  const mediaType = mapContentType(
+  const loader = mapContentTypeToLoader(
     new URL(resp.url || specifierRaw),
     contentType,
   );
+
   const contents = new Uint8Array(await resp.arrayBuffer());
 
-  let loader: esbuild.Loader;
+  return { contents, loader };
+}
+
+async function loadWithReadFile(specifier: URL): Promise<esbuild.OnLoadResult> {
+  const path = fromFileUrl(specifier);
+
+  const loader = mapContentTypeToLoader(specifier, null);
+  const contents = await Deno.readFile(path);
+
+  return { contents, loader };
+}
+
+function mapContentTypeToLoader(
+  specifier: URL,
+  contentType: string | null,
+): esbuild.Loader {
+  const mediaType = mapContentType(specifier, contentType);
   switch (mediaType) {
     case "JavaScript":
-      loader = "js";
-      break;
+      return "js";
     case "JSX":
-      loader = "jsx";
-      break;
+      return "jsx";
     case "TypeScript":
-      loader = "ts";
-      break;
+      return "ts";
     case "TSX":
-      loader = "tsx";
-      break;
+      return "tsx";
     default:
       throw new Error(
         `Unhandled media type ${mediaType}. Content type is ${contentType}.`,
       );
   }
-
-  return { contents, loader };
 }
 
 function mapContentType(
