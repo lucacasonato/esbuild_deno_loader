@@ -12,7 +12,7 @@ import { denoPlugin } from "https://deno.land/x/esbuild_deno_loader@0.3.0/mod.ts
 
 await esbuild.build({
   plugins: [denoPlugin()],
-  entryPoints: ["https://deno.land/std@0.95.0/hash/sha1.ts"],
+  entryPoints: ["https://deno.land/std@0.123.0/hash/sha1.ts"],
   outfile: "./dist/sha1.esm.js",
   bundle: true,
   format: "esm",
