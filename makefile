@@ -1,8 +1,8 @@
 test:
-	deno test -A --unstable
+	deno test -A
 
 lint:
-	deno lint --unstable
+	deno lint
 
 fmt:
 	deno fmt
