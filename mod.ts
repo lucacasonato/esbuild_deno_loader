@@ -10,7 +10,7 @@ import { load as nativeLoad } from "./src/native_loader.ts";
 import { load as portableLoad } from "./src/portable_loader.ts";
 import { ModuleEntry } from "./src/deno.ts";
 
-interface DenoPluginOptions {
+export interface DenoPluginOptions {
   /**
    * Specify the path to an import map file to use when resolving import
    * specifiers.
