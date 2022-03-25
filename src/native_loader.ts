@@ -48,6 +48,7 @@ async function loadFromCLI(
   let loader: esbuild.Loader;
   switch (module.mediaType) {
     case "JavaScript":
+    case "Mjs":
       loader = "js";
       break;
     case "JSX":

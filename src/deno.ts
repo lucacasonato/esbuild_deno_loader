@@ -1,5 +1,6 @@
 export type MediaType =
   | "JavaScript"
+  | "Mjs"
   | "JSX"
   | "TypeScript"
   | "Dts"
