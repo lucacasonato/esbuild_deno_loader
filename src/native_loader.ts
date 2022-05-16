@@ -31,13 +31,21 @@ async function loadFromCLI(
 ): Promise<esbuild.OnLoadResult> {
   const specifierRaw = specifier.href;
   if (!infoCache.has(specifierRaw)) {
-    const { modules } = await deno.info(specifier, {
+    const { modules, redirects } = await deno.info(specifier, {
       importMap: options.importMapFile,
     });
     for (const module of modules) {
       infoCache.set(module.specifier, module);
     }
+    for (const [specifier, redirect] of Object.entries(redirects)) {
+      const redirected = infoCache.get(redirect);
+      if (!redirected) {
+        throw new TypeError("Unreachable.");
+      }
+      infoCache.set(specifier, redirected);
+    }
   }
+
   const module = infoCache.get(specifierRaw);
   if (!module) {
     throw new TypeError("Unreachable.");
@@ -48,12 +56,14 @@ async function loadFromCLI(
   let loader: esbuild.Loader;
   switch (module.mediaType) {
     case "JavaScript":
+    case "Mjs":
       loader = "js";
       break;
     case "JSX":
       loader = "jsx";
       break;
     case "TypeScript":
+    case "Mts":
       loader = "ts";
       break;
     case "TSX":

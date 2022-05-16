@@ -54,8 +54,39 @@ test("local ts", ALL, async (loader) => {
   assertEquals(bool, "asd2");
 });
 
+test("remote mts", ALL, async (loader) => {
+  const res = await esbuild.build({
+    plugins: [denoPlugin({ loader })],
+    write: false,
+    entryPoints: [
+      "https://gist.githubusercontent.com/lucacasonato/4ad57db57ee8d44e4ec08d6a912e93a7/raw/f33e698b4445a7243d72dbfe95afe2d004c7ffc6/mod.mts",
+    ],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd2");
+});
+
+test("local mts", ALL, async (loader) => {
+  const res = await esbuild.build({
+    plugins: [denoPlugin({ loader })],
+    write: false,
+    entryPoints: ["./testdata/mod.mts"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd2");
+});
+
 test("remote js", ALL, async (loader) => {
-  if (loader === "native") return; // ignored (https://github.com/denoland/deno/issues/10528)
   const res = await esbuild.build({
     plugins: [denoPlugin({ loader })],
     write: false,
@@ -85,8 +116,39 @@ test("local js", ALL, async (loader) => {
   assertEquals(bool, "asd");
 });
 
+test("remote mjs", ALL, async (loader) => {
+  const res = await esbuild.build({
+    plugins: [denoPlugin({ loader })],
+    write: false,
+    entryPoints: [
+      "https://gist.githubusercontent.com/lucacasonato/4ad57db57ee8d44e4ec08d6a912e93a7/raw/f33e698b4445a7243d72dbfe95afe2d004c7ffc6/mod.mjs",
+    ],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd");
+});
+
+test("local mjs", ALL, async (loader) => {
+  const res = await esbuild.build({
+    plugins: [denoPlugin({ loader })],
+    write: false,
+    entryPoints: ["./testdata/mod.mjs"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd");
+});
+
 test("remote jsx", ALL, async (loader) => {
-  if (loader === "native") return; // ignored (https://github.com/denoland/deno/issues/10528)
   const res = await esbuild.build({
     plugins: [denoPlugin({ loader })],
     write: false,
@@ -117,7 +179,6 @@ test("local jsx", ALL, async (loader) => {
 });
 
 test("remote tsx", ALL, async (loader) => {
-  if (loader === "native") return; // ignored (https://github.com/denoland/deno/issues/10528)
   const res = await esbuild.build({
     plugins: [denoPlugin({ loader })],
     write: false,
