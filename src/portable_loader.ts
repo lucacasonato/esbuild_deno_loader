@@ -63,10 +63,12 @@ function mapContentTypeToLoader(
   const mediaType = mapContentType(specifier, contentType);
   switch (mediaType) {
     case "JavaScript":
+    case "Mjs":
       return "js";
     case "JSX":
       return "jsx";
     case "TypeScript":
+    case "Mts":
       return "ts";
     case "TSX":
       return "tsx";
@@ -126,6 +128,10 @@ function mapJsLikeExtension(
   switch (extname(path)) {
     case ".jsx":
       return "JSX";
+    case ".mjs":
+      return "Mjs";
+    case ".cjs":
+      return "Cjs";
     case ".tsx":
       return "TSX";
     case ".ts":
@@ -134,6 +140,20 @@ function mapJsLikeExtension(
       } else {
         return defaultType;
       }
+    case ".mts": {
+      if (path.endsWith(".d.mts")) {
+        return "Dmts";
+      } else {
+        return defaultType == "JavaScript" ? "Mjs" : "Mts";
+      }
+    }
+    case ".cts": {
+      if (path.endsWith(".d.cts")) {
+        return "Dcts";
+      } else {
+        return defaultType == "JavaScript" ? "Cjs" : "Cts";
+      }
+    }
     default:
       return defaultType;
   }
@@ -154,14 +174,28 @@ function mediaTypeFromSpecifier(specifier: URL): deno.MediaType {
       } else {
         return "TypeScript";
       }
+    case ".mts":
+      if (path.endsWith(".d.mts")) {
+        return "Dmts";
+      } else {
+        return "Mts";
+      }
+    case ".cts":
+      if (path.endsWith(".d.cts")) {
+        return "Dcts";
+      } else {
+        return "Cts";
+      }
     case ".tsx":
       return "TSX";
     case ".js":
-    case ".mjs":
-    case ".cjs":
       return "JavaScript";
     case ".jsx":
       return "JSX";
+    case ".mjs":
+      return "Mjs";
+    case ".cjs":
+      return "Cjs";
     case ".json":
       return "Json";
     case ".wasm":
