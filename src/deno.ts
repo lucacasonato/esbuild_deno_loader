@@ -58,6 +58,7 @@ export async function info(
     proc = Deno.run({
       cmd,
       stdout: "piped",
+      stderr: "piped",
     });
     const raw = await proc.output();
     const status = await proc.status();
@@ -69,6 +70,7 @@ export async function info(
   } finally {
     try {
       proc?.stdout.close();
+      proc?.stderr.close();
     } catch (err) {
       if (err instanceof Deno.errors.BadResource) {
         // ignore the error
