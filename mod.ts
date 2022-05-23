@@ -1,7 +1,6 @@
 import {
   esbuild,
   ImportMap,
-  resolve,
   resolveImportMap,
   resolveModuleSpecifier,
   toFileUrl,
@@ -12,10 +11,10 @@ import { ModuleEntry } from "./src/deno.ts";
 
 export interface DenoPluginOptions {
   /**
-   * Specify the path to an import map file to use when resolving import
-   * specifiers.
+   * Specify the URL to an import map to use when resolving import specifiers.
+   * The URL must be fetchable with `fetch`.
    */
-  importMapFile?: string;
+  importMapURL?: URL;
   /**
    * Specify which loader to use. By default this will use the `native` loader,
    * unless `Deno.run` is not available.
@@ -41,10 +40,10 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
       let importMap: ImportMap | null = null;
 
       build.onStart(async function onStart() {
-        if (options.importMapFile !== undefined) {
-          const url = toFileUrl(resolve(options.importMapFile));
-          const txt = await Deno.readTextFile(url);
-          importMap = resolveImportMap(JSON.parse(txt), url);
+        if (options.importMapURL !== undefined) {
+          const resp = await fetch(options.importMapURL.href);
+          const txt = await resp.text();
+          importMap = resolveImportMap(JSON.parse(txt), options.importMapURL);
         } else {
           importMap = null;
         }

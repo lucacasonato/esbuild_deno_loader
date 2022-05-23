@@ -225,10 +225,12 @@ test("bundle remote imports", ALL, async (loader) => {
   assert(v4.validate(v4.generate()));
 });
 
+const importMapURL = new URL("./testdata/importmap.json", import.meta.url);
+
 test("bundle import map", ALL, async (loader) => {
   const res = await esbuild.build({
     plugins: [
-      denoPlugin({ importMapFile: "./testdata/importmap.json", loader }),
+      denoPlugin({ importMapURL, loader }),
     ],
     write: false,
     bundle: true,
