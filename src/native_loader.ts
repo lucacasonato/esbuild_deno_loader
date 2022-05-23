@@ -2,7 +2,7 @@ import { esbuild, fromFileUrl } from "../deps.ts";
 import * as deno from "./deno.ts";
 
 export interface LoadOptions {
-  importMapFile?: string;
+  importMapURL?: URL;
 }
 
 export async function load(
@@ -32,7 +32,7 @@ async function loadFromCLI(
   const specifierRaw = specifier.href;
   if (!infoCache.has(specifierRaw)) {
     const { modules, redirects } = await deno.info(specifier, {
-      importMap: options.importMapFile,
+      importMap: options.importMapURL?.href,
     });
     for (const module of modules) {
       infoCache.set(module.specifier, module);

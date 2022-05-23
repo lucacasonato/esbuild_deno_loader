@@ -2,7 +2,7 @@ import { esbuild, extname, fromFileUrl } from "../deps.ts";
 import * as deno from "./deno.ts";
 
 export interface LoadOptions {
-  importMapFile?: string;
+  importMapURL?: URL;
 }
 
 export async function load(

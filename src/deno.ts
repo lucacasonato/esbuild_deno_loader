@@ -38,6 +38,8 @@ interface DenoInfoOptions {
   importMap?: string;
 }
 
+let tempDir: null | string;
+
 export async function info(
   specifier: URL,
   options: DenoInfoOptions,
@@ -52,12 +54,17 @@ export async function info(
   }
   cmd.push(specifier.href);
 
+  if (!tempDir) {
+    tempDir = Deno.makeTempDirSync();
+  }
+
   let proc;
 
   try {
     proc = Deno.run({
       cmd,
       stdout: "piped",
+      cwd: tempDir,
     });
     const raw = await proc.output();
     const status = await proc.status();
