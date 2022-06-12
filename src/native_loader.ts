@@ -69,6 +69,9 @@ async function loadFromCLI(
     case "TSX":
       loader = "tsx";
       break;
+    case 'Json':
+      loader = 'json';
+      break;
     default:
       throw new Error(`Unhandled media type ${module.mediaType}.`);
   }
