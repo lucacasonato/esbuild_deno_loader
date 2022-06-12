@@ -72,6 +72,8 @@ function mapContentTypeToLoader(
       return "ts";
     case "TSX":
       return "tsx";
+    case "Json":
+      return "json";
     default:
       throw new Error(
         `Unhandled media type ${mediaType}. Content type is ${contentType}.`,
@@ -134,6 +136,8 @@ function mapJsLikeExtension(
       return "Cjs";
     case ".tsx":
       return "TSX";
+    case ".json":
+      return "Json";
     case ".ts":
       if (path.endsWith(".d.ts")) {
         return "Dts";
