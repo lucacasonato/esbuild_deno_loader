@@ -1,5 +1,6 @@
 import { esbuild, fromFileUrl } from "../deps.ts";
 import * as deno from "./deno.ts";
+import { mediaTypeToLoader, transformRawIntoContent } from "./shared.ts";
 
 export interface LoadOptions {
   importMapURL?: URL;
@@ -53,25 +54,12 @@ async function loadFromCLI(
 
   if (module.error) throw new Error(module.error);
   if (!module.local) throw new Error("Module not downloaded yet.");
-  let loader: esbuild.Loader;
-  switch (module.mediaType) {
-    case "JavaScript":
-    case "Mjs":
-      loader = "js";
-      break;
-    case "JSX":
-      loader = "jsx";
-      break;
-    case "TypeScript":
-    case "Mts":
-      loader = "ts";
-      break;
-    case "TSX":
-      loader = "tsx";
-      break;
-    default:
-      throw new Error(`Unhandled media type ${module.mediaType}.`);
-  }
-  const contents = await Deno.readFile(module.local);
+  const mediaType = module.mediaType ?? "Unknown";
+
+  const loader = mediaTypeToLoader(mediaType);
+
+  const raw = await Deno.readFile(module.local);
+  const contents = transformRawIntoContent(raw, mediaType);
+
   return { contents, loader };
 }

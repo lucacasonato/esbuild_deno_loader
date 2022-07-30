@@ -1,5 +1,6 @@
 import { esbuild, extname, fromFileUrl } from "../deps.ts";
 import * as deno from "./deno.ts";
+import { mediaTypeToLoader, transformRawIntoContent } from "./shared.ts";
 
 export interface LoadOptions {
   importMapURL?: URL;
@@ -37,12 +38,15 @@ async function loadWithFetch(
   }
 
   const contentType = resp.headers.get("content-type");
-  const loader = mapContentTypeToLoader(
+  const mediaType = mapContentType(
     new URL(resp.url || specifierRaw),
     contentType,
   );
 
-  const contents = new Uint8Array(await resp.arrayBuffer());
+  const loader = mediaTypeToLoader(mediaType);
+
+  const raw = new Uint8Array(await resp.arrayBuffer());
+  const contents = transformRawIntoContent(raw, mediaType);
 
   return { contents, loader };
 }
@@ -50,33 +54,13 @@ async function loadWithFetch(
 async function loadWithReadFile(specifier: URL): Promise<esbuild.OnLoadResult> {
   const path = fromFileUrl(specifier);
 
-  const loader = mapContentTypeToLoader(specifier, null);
-  const contents = await Deno.readFile(path);
+  const mediaType = mapContentType(specifier, null);
+  const loader = mediaTypeToLoader(mediaType);
+
+  const raw = await Deno.readFile(path);
+  const contents = transformRawIntoContent(raw, mediaType);
 
   return { contents, loader };
-}
-
-function mapContentTypeToLoader(
-  specifier: URL,
-  contentType: string | null,
-): esbuild.Loader {
-  const mediaType = mapContentType(specifier, contentType);
-  switch (mediaType) {
-    case "JavaScript":
-    case "Mjs":
-      return "js";
-    case "JSX":
-      return "jsx";
-    case "TypeScript":
-    case "Mts":
-      return "ts";
-    case "TSX":
-      return "tsx";
-    default:
-      throw new Error(
-        `Unhandled media type ${mediaType}. Content type is ${contentType}.`,
-      );
-  }
 }
 
 function mapContentType(
