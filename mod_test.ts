@@ -245,3 +245,25 @@ test("bundle import map", ALL, async (loader) => {
   const { bool } = await import(dataURL);
   assertEquals(bool, "asd2");
 });
+
+test("local json", ALL, async (loader) => {
+  const res = await esbuild.build({
+    plugins: [denoPlugin({ loader })],
+    write: false,
+    format: "esm",
+    entryPoints: ["./testdata/data.json"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  console.log(output.text);
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { default: data } = await import(dataURL);
+  assertEquals(data, {
+    "hello": "world",
+    ["__proto__"]: {
+      "sky": "universe",
+    },
+  });
+});
