@@ -30,11 +30,11 @@ jobs:
 
       - name: Format
         if: runner.os == 'Linux'
-        run: make fmt/check
+        run: deno check
 
       - name: Lint
         if: runner.os == 'Linux'
-        run: make lint
+        run: deno lint
 
       - name: Run tests
-        run: make test
+        run: deno test
