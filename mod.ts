@@ -25,14 +25,23 @@ export interface DenoPluginOptions {
    *                 Requires --allow-net.
    */
   loader?: "native" | "portable";
+  /**
+   * Specify regex for the import paths this plugin should resolve. By default,
+   * it will capture all file paths and throw when a path is not recognised.
+   */
+  filter?: RegExp;
 }
 
 /** The default loader to use. */
 export const DEFAULT_LOADER: "native" | "portable" =
   typeof Deno.run === "function" ? "native" : "portable";
 
+/** By default, capture all paths. */
+export const DEFAULT_FILTER = /.*/;
+
 export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
   const loader = options.loader ?? DEFAULT_LOADER;
+  const filter = options.filter ?? DEFAULT_FILTER;
   return {
     name: "deno",
     setup(build) {
@@ -49,7 +58,7 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
         }
       });
 
-      build.onResolve({ filter: /.*/ }, function onResolve(
+      build.onResolve({ filter }, function onResolve(
         args: esbuild.OnResolveArgs,
       ): esbuild.OnResolveResult | null | undefined {
         const resolveDir = args.resolveDir
@@ -70,7 +79,7 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
         return { path: resolved.href, namespace: "deno" };
       });
 
-      build.onLoad({ filter: /.*/ }, function onLoad(
+      build.onLoad({ filter }, function onLoad(
         args: esbuild.OnLoadArgs,
       ): Promise<esbuild.OnLoadResult | null> {
         const url = new URL(args.path);
