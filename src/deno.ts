@@ -44,8 +44,9 @@ export async function info(
   specifier: URL,
   options: DenoInfoOptions,
 ): Promise<InfoOutput> {
+  const denoExecPath = Deno.execPath() 
   const cmd = [
-    Deno.execPath().endsWith('deno.exe') ? Deno.execPath() : 'deno',
+    denoExecPath.endsWith('deno.exe') || denoExecPath.endsWith('deno') ? denoExecPath : 'deno',
     "info",
     "--json",
   ];
