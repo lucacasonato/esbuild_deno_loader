@@ -55,7 +55,9 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
         const resolveDir = args.resolveDir
           ? `${toFileUrl(args.resolveDir).href}/`
           : "";
-        const referrer = args.importer || resolveDir;
+        const referrer = args.importer
+          ? `${args.namespace}:${args.importer}`
+          : resolveDir;
         let resolved: URL;
         if (importMap !== null) {
           const res = resolveModuleSpecifier(
@@ -67,20 +69,26 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
         } else {
           resolved = new URL(args.path, referrer);
         }
-        return { path: resolved.href, namespace: "deno" };
+        const protocol = resolved.protocol;
+        const path = resolved.href.slice(protocol.length);
+        return { path, namespace: protocol.slice(0, -1) };
       });
 
-      build.onLoad({ filter: /.*/ }, function onLoad(
+      function onLoad(
         args: esbuild.OnLoadArgs,
       ): Promise<esbuild.OnLoadResult | null> {
-        const url = new URL(args.path);
+        const url = new URL(`${args.namespace}:${args.path}`);
         switch (loader) {
           case "native":
             return nativeLoad(infoCache, url, options);
           case "portable":
             return portableLoad(url, options);
         }
-      });
+      }
+      build.onLoad({ filter: /.*\.json/, namespace: "file" }, onLoad);
+      build.onLoad({ filter: /.*/, namespace: "http" }, onLoad);
+      build.onLoad({ filter: /.*/, namespace: "https" }, onLoad);
+      build.onLoad({ filter: /.*/, namespace: "data" }, onLoad);
     },
   };
 }

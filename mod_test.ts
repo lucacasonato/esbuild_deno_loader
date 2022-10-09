@@ -257,7 +257,6 @@ test("local json", ALL, async (loader) => {
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
-  console.log(output.text);
   const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
   const { default: data } = await import(dataURL);
   assertEquals(data, {
