@@ -12,7 +12,7 @@ import * as esbuild from "https://deno.land/x/esbuild@v0.15.10/mod.js";
 // permitted, such as Deno Deploy, or when running without `--allow-run`.
 // import * as esbuild from "https://deno.land/x/esbuild@v0.15.10/wasm.js";
 
-import { denoPlugin } from "https://deno.land/x/esbuild_deno_loader@0.5.2/mod.ts";
+import { denoPlugin } from "https://deno.land/x/esbuild_deno_loader@0.6.0/mod.ts";
 
 const result = await esbuild.build({
   plugins: [denoPlugin()],
