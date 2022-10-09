@@ -1,5 +1,6 @@
 import {
   esbuild,
+  fromFileUrl,
   ImportMap,
   resolveImportMap,
   resolveModuleSpecifier,
@@ -70,6 +71,10 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
           resolved = new URL(args.path, referrer);
         }
         const protocol = resolved.protocol;
+        if (protocol === "file:") {
+          const path = fromFileUrl(resolved);
+          return { path, namespace: "file" };
+        }
         const path = resolved.href.slice(protocol.length);
         return { path, namespace: protocol.slice(0, -1) };
       });
