@@ -82,7 +82,12 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
       function onLoad(
         args: esbuild.OnLoadArgs,
       ): Promise<esbuild.OnLoadResult | null> {
-        const url = new URL(`${args.namespace}:${args.path}`);
+        let url;
+        if (args.namespace === "file") {
+          url = toFileUrl(args.path);
+        } else {
+          url = new URL(`${args.namespace}:${args.path}`);
+        }
         switch (loader) {
           case "native":
             return nativeLoad(infoCache, url, options);
