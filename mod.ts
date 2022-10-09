@@ -17,12 +17,12 @@ export interface DenoPluginOptions {
   importMapURL?: URL;
   /**
    * Specify which loader to use. By default this will use the `native` loader,
-   * unless the run permission has not been given.
+   * unless the `--allow-run` permission has not been given.
    *
    * - `native`:     Shells out to the Deno execuatble under the hood to load
    *                 files. Requires --allow-read and --allow-run.
    * - `portable`:   Do module downloading and caching with only Web APIs.
-   *                 Requires --allow-net.
+   *                 Requires --allow-read and/or --allow-net.
    */
   loader?: "native" | "portable";
 }

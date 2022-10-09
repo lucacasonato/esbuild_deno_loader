@@ -1,4 +1,4 @@
-import * as esbuild from "https://deno.land/x/esbuild@v0.15.7/mod.js";
+import * as esbuild from "https://deno.land/x/esbuild@v0.15.10/mod.js";
 export { esbuild };
 export {
   assert,

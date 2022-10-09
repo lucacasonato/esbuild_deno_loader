@@ -7,10 +7,11 @@ Deno module resolution for `esbuild`.
 This example bundles an entrypoint into a single ESM output.
 
 ```js
-import * as esbuild from "https://deno.land/x/esbuild@v0.15.7/mod.js";
-// Import as wasm on platforms that don't support `Deno.run`
-// Such as deno deploy
-// import * as esbuild from "https://deno.land/x/esbuild@v0.15.7/wasm.js";
+import * as esbuild from "https://deno.land/x/esbuild@v0.15.10/mod.js";
+// Import the WASM build on platforms running subprocesses (`Deno.run`) is not
+// permitted, such as Deno Deploy, or when running without `--allow-run`.
+// import * as esbuild from "https://deno.land/x/esbuild@v0.15.10/wasm.js";
+
 import { denoPlugin } from "https://deno.land/x/esbuild_deno_loader@0.5.2/mod.ts";
 
 const result = await esbuild.build({
@@ -21,13 +22,17 @@ const result = await esbuild.build({
   format: "esm",
 });
 
-// When using wasm version
 console.log(result.outputFiles);
+
 esbuild.stop();
 ```
 
-## Performance
+## Permissions
 
-If you wish to gain a boost in performance run your application with the
-`--allow-run` flag. If you do not give this permission then the library will
-fall back on using the wasm version of esbuild.
+This plugins requires the following permissions:
+
+- `--allow-read` if you need to resolve local files.
+- `--allow-net` if you need to resolve remote files.
+
+If the program is run with `--allow-run`, the plugin will use the `deno` binary
+to resolve remote files. This allows the plugin to re-use the Deno module cache.
