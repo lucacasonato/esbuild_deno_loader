@@ -17,19 +17,23 @@ export interface DenoPluginOptions {
   importMapURL?: URL;
   /**
    * Specify which loader to use. By default this will use the `native` loader,
-   * unless `Deno.run` is not available.
+   * unless the `--allow-run` permission has not been given.
    *
    * - `native`:     Shells out to the Deno execuatble under the hood to load
    *                 files. Requires --allow-read and --allow-run.
    * - `portable`:   Do module downloading and caching with only Web APIs.
-   *                 Requires --allow-net.
+   *                 Requires --allow-read and/or --allow-net.
    */
   loader?: "native" | "portable";
 }
 
 /** The default loader to use. */
 export const DEFAULT_LOADER: "native" | "portable" =
-  typeof Deno.run === "function" ? "native" : "portable";
+  await Deno.permissions.query({ name: "run" }).then((res) =>
+      res.state !== "granted"
+    )
+    ? "portable"
+    : "native";
 
 export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
   const loader = options.loader ?? DEFAULT_LOADER;
