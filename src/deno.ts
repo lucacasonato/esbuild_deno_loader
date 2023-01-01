@@ -87,3 +87,58 @@ export async function info(
     proc?.close();
   }
 }
+
+export async function getCacheLocation(): Promise<string> {
+  const cmd = [Deno.execPath(), "info", "--json"];
+
+  let proc;
+  try {
+    proc = Deno.run({
+      cmd,
+      stdout: "piped",
+    });
+    const raw = await proc.output();
+    const status = await proc.status();
+    if (!status.success) {
+      throw new Error(
+        `Failed to call 'deno info' for locating npmRegisties Cache Local`,
+      );
+    }
+    const txt = new TextDecoder().decode(raw);
+    return JSON.parse(txt).npmCache;
+  } finally {
+    try {
+      proc?.stdout.close();
+    } catch (err) {
+      if (!(err instanceof Deno.errors.BadResource)) {
+        throw err;
+      }
+    }
+    proc?.close();
+  }
+}
+
+export async function getNpmMod(specifier: string) {
+  try {
+    const p = Deno.run({
+      cmd: [Deno.execPath(), "run", specifier],
+      stdout: "piped",
+      stderr: "piped",
+    });
+
+    await p.status();
+  } catch (_err) {
+    throw Error(`Can't Download ${specifier} package, Error ${_err}`);
+  }
+}
+
+export async function checkExistNpmMod(specifier: string, moduleDir: string) {
+  try {
+    await Deno.readTextFile(`${moduleDir}/package.json`);
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      await getNpmMod(specifier);
+      return;
+    } else throw Error(`Unhandled Error ${err}`);
+  }
+}

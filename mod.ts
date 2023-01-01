@@ -8,7 +8,13 @@ import {
 } from "./deps.ts";
 import { load as nativeLoad } from "./src/native_loader.ts";
 import { load as portableLoad } from "./src/portable_loader.ts";
-import { ModuleEntry } from "./src/deno.ts";
+import { checkExistNpmMod, ModuleEntry } from "./src/deno.ts";
+import { getCacheLocation } from "./src/deno.ts";
+import {
+  isEntry,
+  NpmPackageReference,
+  npmPackageReference,
+} from "./src/npm_specifier.ts";
 
 export interface DenoPluginOptions {
   /**
@@ -38,10 +44,15 @@ export const DEFAULT_LOADER: "native" | "portable" =
 
 export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
   const loader = options.loader ?? DEFAULT_LOADER;
+
   return {
     name: "deno",
-    setup(build) {
+    async setup(build) {
+      const npmCache = (await getCacheLocation()).replaceAll("\\", "/");
+
+      const skipResolve = {};
       const infoCache = new Map<string, ModuleEntry>();
+      const npmModulesCache = new Map<string, NpmPackageReference>();
       let importMap: ImportMap | null = null;
 
       build.onStart(async function onStart() {
@@ -54,15 +65,24 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
         }
       });
 
-      build.onResolve({ filter: /.*/ }, function onResolve(
+      build.onResolve({ filter: /.*/ }, async function onResolve(
         args: esbuild.OnResolveArgs,
-      ): esbuild.OnResolveResult | null | undefined {
+      ): Promise<esbuild.OnResolveResult | null | undefined> {
+        if (args.kind === "require-call") {
+          const isNodeMod = args.path.split("/").length < 2;
+
+          if (isNodeMod) throw Error(`Cant Import Node Module ${args.path}`);
+        }
         const resolveDir = args.resolveDir
           ? `${toFileUrl(args.resolveDir).href}/`
           : "";
         const referrer = args.importer
           ? `${args.namespace}:${args.importer}`
           : resolveDir;
+
+        const npm = args.path.startsWith("npm:");
+
+        if (npm) return { path: args.path, namespace: "node" };
         let resolved: URL;
         if (importMap !== null) {
           const res = resolveModuleSpecifier(
@@ -72,7 +92,34 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
           );
           resolved = new URL(res);
         } else {
-          resolved = new URL(args.path, referrer);
+          try {
+            resolved = new URL(args.path, referrer);
+
+            //These are thrown whenever it receives a non-URL type e.g(require("./lib/route"))
+          } catch {
+            // This is For importing files from npm-packages.. Since they dint contain extensions
+            // For Example, express's index.js file has "var route = require("./lib/route")",
+            // Since route is route.js file..
+            if (args.path.startsWith(".")) {
+              const ref = npmModulesCache.get(args.importer);
+              const specifier = ref?.name;
+              const version = ref?.versionReq;
+              const moduleDirPath =
+                `${npmCache}/registry.npmjs.org/${specifier}/${version}`;
+
+              if (isEntry(args.path)) {
+                return {
+                  path: `${moduleDirPath}/${args.path.substring(2)}.js`,
+                  namespace: "file",
+                };
+              }
+              return {
+                path: `${moduleDirPath}/${args.path.substring(2)}`,
+                namespace: "file",
+              };
+            }
+            throw Error("Node Package Detected");
+          }
         }
         const protocol = resolved.protocol;
         if (protocol === "file:") {
@@ -99,10 +146,48 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
             return portableLoad(url, options);
         }
       }
+      async function nodePackage(
+        args: esbuild.OnLoadArgs,
+      ): Promise<esbuild.OnLoadResult | null | undefined> {
+        let ref: NpmPackageReference | undefined = npmModulesCache
+          .get(args.path);
+
+        if (!ref) {
+          ref = npmPackageReference(args.path);
+          npmModulesCache.set(args.path, ref);
+        }
+        const specifier = ref.name;
+        const version = ref.versionReq;
+
+        if (!version) {
+          throw new Error(`Version not specified for ${specifier}`);
+        }
+
+        const moduleDirPath =
+          `${npmCache}/registry.npmjs.org/${specifier}/${version}`;
+
+        //Make Sure the Package is cached at NPM Cache Else It will be downloaded See Func Definition..
+        await checkExistNpmMod(args.path, moduleDirPath);
+
+        const packageJson = JSON.parse(
+          await Deno.readTextFile(
+            `${moduleDirPath}/package.json`,
+          ),
+        );
+
+        let file = packageJson.main ?? "index.js";
+        if (ref.subPath) {
+          file = `${ref.subPath}.js`;
+        }
+        return {
+          contents: await Deno.readTextFile(`${moduleDirPath}/${file}`),
+        };
+      }
       build.onLoad({ filter: /.*\.json/, namespace: "file" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "http" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "https" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "data" }, onLoad);
+      build.onLoad({ filter: /.*/, namespace: "node" }, nodePackage);
     },
   };
 }
