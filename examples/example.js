@@ -1,4 +1,4 @@
-// import express from "npm:express@4.18";
+// import express from "npm:express@4.18.2";
 import * as lodash from "npm:lodash@4.17.21";
 import { data } from "./example2.js";
 // console.log(express);

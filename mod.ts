@@ -50,7 +50,6 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
     async setup(build) {
       const npmCache = (await getCacheLocation()).replaceAll("\\", "/");
 
-      const skipResolve = {};
       const infoCache = new Map<string, ModuleEntry>();
       const npmModulesCache = new Map<string, NpmPackageReference>();
       let importMap: ImportMap | null = null;
@@ -65,12 +64,15 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
         }
       });
 
-      build.onResolve({ filter: /.*/ }, async function onResolve(
+      build.onResolve({ filter: /.*/ }, function onResolve(
         args: esbuild.OnResolveArgs,
-      ): Promise<esbuild.OnResolveResult | null | undefined> {
-        if (args.kind === "require-call") {
-          const isNodeMod = args.path.split("/").length < 2;
+      ): esbuild.OnResolveResult | null | undefined {
+        const npm = args.path.startsWith("npm:");
+        if (npm) return { path: args.path, namespace: "node" };
 
+        // Finding Node packages, if package not start with "." it consider as Node Package
+        if (args.kind === "require-call") {
+          const isNodeMod = !args.path.startsWith(".");
           if (isNodeMod) throw Error(`Cant Import Node Module ${args.path}`);
         }
         const resolveDir = args.resolveDir
@@ -80,9 +82,7 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
           ? `${args.namespace}:${args.importer}`
           : resolveDir;
 
-        const npm = args.path.startsWith("npm:");
-
-        if (npm) return { path: args.path, namespace: "node" };
+        
         let resolved: URL;
         if (importMap !== null) {
           const res = resolveModuleSpecifier(
@@ -107,11 +107,25 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
               const moduleDirPath =
                 `${npmCache}/registry.npmjs.org/${specifier}/${version}`;
 
+                // Checking whether it is named without extension
               if (isEntry(args.path)) {
-                return {
+
+                // This try is for consider if the path is "./route" its consider
+                // to be ./route.js and also ./route/index.js , If it not found, we can 
+                // redirect to index.js 
+                try {return {
                   path: `${moduleDirPath}/${args.path.substring(2)}.js`,
                   namespace: "file",
-                };
+                }}
+
+                catch(err){
+                  if(err == Deno.errors.NotFound){
+                    return {
+                      path: `${moduleDirPath}/${args.path.substring(2)}/index.js`,
+                      namespace: "file",
+                    }
+                  }
+                }
               }
               return {
                 path: `${moduleDirPath}/${args.path.substring(2)}`,
@@ -159,16 +173,11 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
         const specifier = ref.name;
         const version = ref.versionReq;
 
-        if (!version) {
-          throw new Error(`Version not specified for ${specifier}`);
-        }
-
+        
         const moduleDirPath =
           `${npmCache}/registry.npmjs.org/${specifier}/${version}`;
-
         //Make Sure the Package is cached at NPM Cache Else It will be downloaded See Func Definition..
         await checkExistNpmMod(args.path, moduleDirPath);
-
         const packageJson = JSON.parse(
           await Deno.readTextFile(
             `${moduleDirPath}/package.json`,
