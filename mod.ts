@@ -11,7 +11,6 @@ import { load as portableLoad } from "./src/portable_loader.ts";
 import { checkExistNpmMod, ModuleEntry } from "./src/deno.ts";
 import { getCacheLocation } from "./src/deno.ts";
 import {
-  isEntry,
   NpmPackageReference,
   npmPackageReference,
 } from "./src/npm_specifier.ts";
@@ -54,6 +53,7 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
       const npmModulesCache = new Map<string, NpmPackageReference>();
       let importMap: ImportMap | null = null;
 
+      const skipResolved = {};
       build.onStart(async function onStart() {
         if (options.importMapURL !== undefined) {
           const resp = await fetch(options.importMapURL.href);
@@ -64,11 +64,15 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
         }
       });
 
-      build.onResolve({ filter: /.*/ }, function onResolve(
+      build.onResolve({ filter: /.*/ }, async function onResolve(
         args: esbuild.OnResolveArgs,
-      ): esbuild.OnResolveResult | null | undefined {
+      ): Promise<esbuild.OnResolveResult | null | undefined> {
+
+        if(args.pluginData == skipResolved) {
+          return;
+        }
         const npm = args.path.startsWith("npm:");
-        if (npm) return { path: args.path, namespace: "node" };
+        if (npm) return { path: args.path, namespace: "npm" };
 
         // Finding Node packages, if package not start with "." it consider as Node Package
         if (args.kind === "require-call") {
@@ -82,6 +86,7 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
           ? `${args.namespace}:${args.importer}`
           : resolveDir;
 
+
         
         let resolved: URL;
         if (importMap !== null) {
@@ -91,49 +96,20 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
             new URL(referrer) || undefined,
           );
           resolved = new URL(res);
-        } else {
-          try {
-            resolved = new URL(args.path, referrer);
-
-            //These are thrown whenever it receives a non-URL type e.g(require("./lib/route"))
-          } catch {
-            // This is For importing files from npm-packages.. Since they dint contain extensions
-            // For Example, express's index.js file has "var route = require("./lib/route")",
-            // Since route is route.js file..
-            if (args.path.startsWith(".")) {
-              const ref = npmModulesCache.get(args.importer);
-              const specifier = ref?.name;
-              const version = ref?.versionReq;
-              const moduleDirPath =
-                `${npmCache}/registry.npmjs.org/${specifier}/${version}`;
-
-                // Checking whether it is named without extension
-              if (isEntry(args.path)) {
-
-                // This try is for consider if the path is "./route" its consider
-                // to be ./route.js and also ./route/index.js , If it not found, we can 
-                // redirect to index.js 
-                try {return {
-                  path: `${moduleDirPath}/${args.path.substring(2)}.js`,
-                  namespace: "file",
-                }}
-
-                catch(err){
-                  if(err == Deno.errors.NotFound){
-                    return {
-                      path: `${moduleDirPath}/${args.path.substring(2)}/index.js`,
-                      namespace: "file",
-                    }
-                  }
-                }
-              }
+        } 
+        else if(referrer.startsWith("npm:")){
+          const ref = npmModulesCache.get(args.importer);
+          const specifier = ref?.name;
+          const version = ref?.versionReq;
+          const moduleDirPath =
+            `${npmCache}/registry.npmjs.org/${specifier}/${version}/`;
+            const res = await build.resolve(args.path, { resolveDir: moduleDirPath, pluginData: skipResolved});
               return {
-                path: `${moduleDirPath}/${args.path.substring(2)}`,
-                namespace: "file",
-              };
-            }
-            throw Error("Node Package Detected");
-          }
+                path: res.path
+              }
+        }
+        else {
+            resolved = new URL(args.path, referrer);
         }
         const protocol = resolved.protocol;
         if (protocol === "file:") {
@@ -160,7 +136,7 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
             return portableLoad(url, options);
         }
       }
-      async function nodePackage(
+      async function loadNpm(
         args: esbuild.OnLoadArgs,
       ): Promise<esbuild.OnLoadResult | null | undefined> {
         let ref: NpmPackageReference | undefined = npmModulesCache
@@ -196,7 +172,7 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
       build.onLoad({ filter: /.*/, namespace: "http" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "https" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "data" }, onLoad);
-      build.onLoad({ filter: /.*/, namespace: "node" }, nodePackage);
+      build.onLoad({ filter: /.*/, namespace: "npm" }, loadNpm);
     },
   };
 }

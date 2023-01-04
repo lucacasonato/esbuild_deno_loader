@@ -1,6 +1,6 @@
 export interface NpmPackageReference {
   name: string;
-  versionReq: string | null;
+  versionReq: string;
   subPath: string | null;
 }
 
