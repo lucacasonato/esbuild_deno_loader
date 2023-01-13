@@ -4,6 +4,6 @@
 		"lint": "deno lint",
 		"fmt": "deno fmt",
 		"check": "deno fmt --check",
-		"update": "deno run --allow-read=./ --allow-net --allow-write=./ https://deno.land/x/deno_outdated@0.2.3/cli.ts"
+		"update": "deno run --allow-read=./ --allow-net --allow-write=./ https://deno.land/x/deno_outdated@0.2.4/cli.ts"
 	}
 }
