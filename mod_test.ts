@@ -25,18 +25,15 @@ test("remote ts", ALL, async (loader) => {
   const res = await esbuild.build({
     plugins: [denoPlugin({ loader })],
     write: false,
-    entryPoints: ["https://deno.land/std@0.172.0/hash/sha1.ts"],
+    entryPoints: ["https://deno.land/std@0.172.0/collections/without_all.ts"],
   });
   assertEquals(res.warnings, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
   const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
-  const { Sha1 } = await import(dataURL);
-  const sha = new Sha1();
-  sha.update("foobar");
-  const digest = sha.hex();
-  assertEquals(digest, "8843d7f92416211de9ebb963ff4ce28125932878");
+  const { withoutAll } = await import(dataURL);
+  assertEquals(withoutAll([1, 2, 3], [2, 3, 4]), [1]);
 });
 
 test("local ts", ALL, async (loader) => {
@@ -221,8 +218,8 @@ test("bundle remote imports", ALL, async (loader) => {
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
   const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
-  const { v4 } = await import(dataURL);
-  assert(v4.validate(v4.generate()));
+  const { v1 } = await import(dataURL);
+  assert(v1.validate(v1.generate()));
 });
 
 const importMapURL = new URL("./testdata/importmap.json", import.meta.url);
