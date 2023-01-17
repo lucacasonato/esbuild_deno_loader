@@ -25,7 +25,7 @@ test("remote ts", ALL, async (loader) => {
   const res = await esbuild.build({
     plugins: [denoPlugin({ loader })],
     write: false,
-    entryPoints: ["https://deno.land/std@0.172.0/collections/without_all.ts"],
+    entryPoints: ["https://deno.land/std@0.173.0/collections/without_all.ts"],
   });
   assertEquals(res.warnings, []);
   assertEquals(res.outputFiles.length, 1);
@@ -211,7 +211,7 @@ test("bundle remote imports", ALL, async (loader) => {
     write: false,
     bundle: true,
     platform: "neutral",
-    entryPoints: ["https://deno.land/std@0.172.0/uuid/mod.ts"],
+    entryPoints: ["https://deno.land/std@0.173.0/uuid/mod.ts"],
   });
   assertEquals(res.warnings, []);
   assertEquals(res.outputFiles.length, 1);
