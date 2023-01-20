@@ -30,7 +30,7 @@ jobs:
 
       - name: Format
         if: runner.os == 'Linux'
-        run: deno check
+        run: deno fmt --check
 
       - name: Lint
         if: runner.os == 'Linux'
