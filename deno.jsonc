@@ -1,0 +1,6 @@
+{
+  "tasks": {
+    "test": "deno test -A",
+    "update": "deno run --allow-read=./ --allow-net --allow-write=./ https://deno.land/x/deno_outdated@0.2.4/cli.ts"
+  }
+}
