@@ -8,7 +8,7 @@ This example bundles an entrypoint into a single ESM output.
 
 ```js
 import * as esbuild from "https://deno.land/x/esbuild@v0.17.2/mod.js";
-// Import the WASM build on platforms where running subprocesses (`Deno.run`) is not
+// Import the WASM build on platforms where running subprocesses is not
 // permitted, such as Deno Deploy, or when running without `--allow-run`.
 // import * as esbuild from "https://deno.land/x/esbuild@v0.17.2/wasm.js";
 
