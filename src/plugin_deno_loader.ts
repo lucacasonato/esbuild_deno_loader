@@ -1,6 +1,10 @@
-import { esbuild } from "../deps.ts";
+import { esbuild, join } from "../deps.ts";
 import { NativeLoader } from "./loader_native.ts";
 import { PortableLoader } from "./loader_portable.ts";
+import {
+  IN_NODE_MODULES,
+  IN_NODE_MODULES_RESOLVED,
+} from "./plugin_deno_resolver.ts";
 import {
   esbuildResolutionToURL,
   Loader,
@@ -54,6 +58,15 @@ export interface DenoLoaderPluginOptions {
   //  * ESM modules.
   //  */
   // lockPath?: string;
+  /**
+   * Specify whether to generate and use a local `node_modules` directory when
+   * using the `native` loader. This is equivalent to the `--node-modules-dir`
+   * flag to the Deno executable.
+   *
+   * This option is ignored when using the `portable` loader, as the portable
+   * loader always uses a local `node_modules` directory.
+   */
+  nodeModulesDir?: boolean;
 }
 
 const LOADERS = ["native", "portable"] as const;
@@ -81,10 +94,13 @@ export const DEFAULT_LOADER: typeof LOADERS[number] =
  * The native loader shells out to the Deno executable under the hood to load
  * files. Requires `--allow-read` and `--allow-run`. In this mode the download
  * cache is shared with the Deno executable. This mode respects deno.lock,
- * DENO_DIR, DENO_AUTH_TOKENS, and all similar loading configuration.
+ * DENO_DIR, DENO_AUTH_TOKENS, and all similar loading configuration. Files are
+ * cached on disk in the same Deno cache as the Deno executable, and will not be
+ * re-downloaded on subsequent builds.
  *
- * When the plugin is configured to use the native loader, it can auto-discover
- * deno.lock and all similar configuration files if the `cwd` option is set.
+ * NPM specifiers can be used in the native loader without requiring a local
+ * `node_modules` directory. NPM packages are resolved, downloaded, cached, and
+ * loaded in the same way as the Deno executable does.
  *
  * ### Portable Loader
  *
@@ -92,6 +108,10 @@ export const DEFAULT_LOADER: typeof LOADERS[number] =
  * Requires `--allow-read` and/or `--allow-net`. This mode does not respect
  * deno.lock, DENO_DIR, DENO_AUTH_TOKENS, or any other loading configuration. It
  * does not cache downloaded files. It will re-download files on every build.
+ *
+ * NPM specifiers can be used in the portable loader, but require a local
+ * `node_modules` directory. The `node_modules` directory must be created prior
+ * using Deno's `--node-modules-dir` flag.
  */
 export function denoLoaderPlugin(
   options: DenoLoaderPluginOptions = {},
@@ -103,17 +123,29 @@ export function denoLoaderPlugin(
   return {
     name: "deno-loader",
     setup(build) {
+      const cwd = build.initialOptions.absWorkingDir ?? Deno.cwd();
+
+      let nodeModulesDir: string | null = null;
+      if (options.nodeModulesDir) {
+        nodeModulesDir = join(cwd, "node_modules");
+      }
+
       let loaderImpl: Loader;
 
+      const packageIdMapping = new Map<string, string>();
+
       build.onStart(function onStart() {
+        packageIdMapping.clear();
         switch (loader) {
           case "native":
             loaderImpl = new NativeLoader({
               infoOptions: {
+                cwd,
                 config: options.configPath,
                 importMap: options.importMapURL,
                 // TODO(lucacasonato): https://github.com/denoland/deno/issues/18159
                 // lock: options.lockPath,
+                nodeModulesDir: options.nodeModulesDir,
               },
             });
             break;
@@ -122,9 +154,84 @@ export function denoLoaderPlugin(
         }
       });
 
+      async function resolveInNodeModules(
+        path: string,
+        packageId: string,
+        resolveDir: string,
+        kind: esbuild.ImportKind,
+      ): Promise<esbuild.OnResolveResult> {
+        const result = await build.resolve(path, {
+          kind,
+          resolveDir,
+          pluginData: IN_NODE_MODULES_RESOLVED,
+        });
+        result.pluginData = IN_NODE_MODULES;
+        packageIdMapping.set(result.path, packageId);
+        return result;
+      }
+
       async function onResolve(
         args: esbuild.OnResolveArgs,
       ): Promise<esbuild.OnResolveResult | null | undefined> {
+        if (args.namespace === "file" && args.pluginData === IN_NODE_MODULES) {
+          if (nodeModulesDir) {
+            const result = await build.resolve(args.path, {
+              kind: args.kind,
+              resolveDir: args.resolveDir,
+              importer: args.importer,
+              namespace: args.namespace,
+              pluginData: IN_NODE_MODULES_RESOLVED,
+            });
+            result.pluginData = IN_NODE_MODULES;
+            return result;
+          } else if (
+            loaderImpl.nodeModulesDirForPackage &&
+            loaderImpl.packageIdFromNameInPackage
+          ) {
+            const parentPackageId = packageIdMapping.get(args.importer);
+            if (!parentPackageId) {
+              throw new Error(
+                `Could not find package ID for importer: ${args.importer}`,
+              );
+            }
+            if (args.path.startsWith(".")) {
+              return resolveInNodeModules(
+                args.path,
+                parentPackageId,
+                args.resolveDir,
+                args.kind,
+              );
+            } else {
+              let packageName: string;
+              let pathParts: string[];
+              if (args.path.startsWith("@")) {
+                const [scope, name, ...rest] = args.path.split("/");
+                packageName = `${scope}/${name}`;
+                pathParts = rest;
+              } else {
+                const [name, ...rest] = args.path.split("/");
+                packageName = name;
+                pathParts = rest;
+              }
+              const packageId = loaderImpl.packageIdFromNameInPackage(
+                packageName,
+                parentPackageId,
+              );
+              const resolveDir = loaderImpl.nodeModulesDirForPackage(packageId);
+              const path = [packageName, ...pathParts].join("/");
+              return resolveInNodeModules(
+                path,
+                parentPackageId,
+                resolveDir,
+                args.kind,
+              );
+            }
+          } else {
+            throw new Error(
+              `To use "npm:" specifiers, you must specify a "cwd" and "nodeModulesDir: true", or use "loader: native".`,
+            );
+          }
+        }
         const specifier = esbuildResolutionToURL(args);
 
         // Once we have an absolute path, let the loader resolver figure out
@@ -136,21 +243,51 @@ export function denoLoaderPlugin(
             const { specifier } = res;
             return urlToEsbuildResolution(specifier);
           }
+          case "npm": {
+            let resolveDir: string;
+            if (nodeModulesDir) {
+              resolveDir = nodeModulesDir;
+            } else if (loaderImpl.nodeModulesDirForPackage) {
+              resolveDir = loaderImpl.nodeModulesDirForPackage(res.packageId);
+            } else {
+              throw new Error(
+                `To use "npm:" specifiers, you must specify a "cwd" and "nodeModulesDir: true", or use "loader: native".`,
+              );
+            }
+            const path = `${res.packageName}${res.path ?? ""}`;
+            return resolveInNodeModules(
+              path,
+              res.packageId,
+              resolveDir,
+              args.kind,
+            );
+          }
+          case "node": {
+            return {
+              path: res.path,
+              external: true,
+            };
+          }
         }
       }
       build.onResolve({ filter: /.*/, namespace: "file" }, onResolve);
       build.onResolve({ filter: /.*/, namespace: "http" }, onResolve);
       build.onResolve({ filter: /.*/, namespace: "https" }, onResolve);
       build.onResolve({ filter: /.*/, namespace: "data" }, onResolve);
+      build.onResolve({ filter: /.*/, namespace: "npm" }, onResolve);
+      build.onResolve({ filter: /.*/, namespace: "node" }, onResolve);
 
-      function onLoad(
+      async function onLoad(
         args: esbuild.OnLoadArgs,
       ): Promise<esbuild.OnLoadResult | null> {
+        if (args.namespace === "file" && args.pluginData === IN_NODE_MODULES) {
+          const contents = await Deno.readFile(args.path);
+          return { loader: "js", contents };
+        }
         const specifier = esbuildResolutionToURL(args);
         return loaderImpl.loadEsm(specifier);
       }
       // TODO(lucacasonato): once https://github.com/evanw/esbuild/pull/2968 is fixed, remove the catch all "file" handler
-      // build.onLoad({ filter: /.*\.json/, namespace: "file" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "file" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "http" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "https" }, onLoad);

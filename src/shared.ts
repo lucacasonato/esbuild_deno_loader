@@ -4,13 +4,31 @@ import { MediaType } from "./deno.ts";
 export interface Loader {
   resolve(specifier: URL): Promise<LoaderResolution>;
   loadEsm(specifier: URL): Promise<esbuild.OnLoadResult>;
+
+  packageIdFromNameInPackage?(name: string, parentPackageId: string): string;
+  nodeModulesDirForPackage?(npmPackageId?: string): string;
 }
 
-export type LoaderResolution = LoaderResolutionEsm;
+export type LoaderResolution =
+  | LoaderResolutionEsm
+  | LoaderResolutionNpm
+  | LoaderResolutionNode;
 
 export interface LoaderResolutionEsm {
   kind: "esm";
   specifier: URL;
+}
+
+export interface LoaderResolutionNpm {
+  kind: "npm";
+  packageId: string;
+  packageName: string;
+  path: string;
+}
+
+export interface LoaderResolutionNode {
+  kind: "node";
+  path: string;
 }
 
 export function mediaTypeToLoader(mediaType: MediaType): esbuild.Loader {
@@ -222,4 +240,48 @@ function mediaTypeFromSpecifier(specifier: URL): MediaType {
     default:
       return "Unknown";
   }
+}
+
+export interface NpmSpecifier {
+  name: string;
+  version: string | null;
+  path: string | null;
+}
+
+export function parseNpmSpecifier(specifier: URL): NpmSpecifier {
+  if (specifier.protocol !== "npm:") throw new Error("Invalid npm specifier");
+  const path = specifier.pathname;
+  const startIndex = path[0] === "/" ? 1 : 0;
+  let pathStartIndex;
+  let versionStartIndex;
+  if (path[startIndex] === "@") {
+    const firstSlash = path.indexOf("/", startIndex);
+    if (firstSlash === -1) {
+      throw new Error(`Invalid npm specifier: ${specifier}`);
+    }
+    pathStartIndex = path.indexOf("/", firstSlash + 1);
+    versionStartIndex = path.indexOf("@", firstSlash + 1);
+  } else {
+    pathStartIndex = path.indexOf("/", startIndex);
+    versionStartIndex = path.indexOf("@", startIndex);
+  }
+
+  if (pathStartIndex === -1) pathStartIndex = path.length;
+  if (versionStartIndex === -1) versionStartIndex = path.length;
+
+  if (versionStartIndex > pathStartIndex) {
+    versionStartIndex = pathStartIndex;
+  }
+
+  if (startIndex === versionStartIndex) {
+    throw new Error(`Invalid npm specifier: ${specifier}`);
+  }
+
+  return {
+    name: path.slice(startIndex, versionStartIndex),
+    version: versionStartIndex === pathStartIndex
+      ? null
+      : path.slice(versionStartIndex + 1, pathStartIndex),
+    path: pathStartIndex === path.length ? null : path.slice(pathStartIndex),
+  };
 }

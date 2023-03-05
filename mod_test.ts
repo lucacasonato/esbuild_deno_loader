@@ -48,6 +48,7 @@ test("remote ts", LOADERS, async (esbuild, loader) => {
   });
   assertEquals(res.warnings, []);
   assertEquals(res.errors, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -63,6 +64,7 @@ test("local ts", LOADERS, async (esbuild, loader) => {
     entryPoints: ["./testdata/mod.ts"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
@@ -274,6 +276,119 @@ test("local json", LOADERS, async (esbuild, loader) => {
     },
   });
 });
+
+test(
+  "npm specifiers global resolver - preact",
+  ["native"],
+  async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader })],
+      bundle: true,
+      entryPoints: ["./testdata/npm/preact.tsx"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(!output.text.includes(`npm:`));
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: html } = await import(dataURL);
+    assertEquals(html, "<div>hello world</div>");
+  },
+);
+
+test(
+  "npm specifiers global resolver - react",
+  ["native"],
+  async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader })],
+      bundle: true,
+      entryPoints: ["./testdata/npm/react.tsx"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(!output.text.includes(`npm:`));
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: html } = await import(dataURL);
+    assertEquals(html, "<div>hello world</div>");
+  },
+);
+
+test(
+  "npm specifiers local resolver - preact",
+  LOADERS,
+  async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const entryPoint =
+      new URL("./testdata/npm/preact.tsx", import.meta.url).href;
+    const tmp = Deno.makeTempDirSync();
+    console.log("tmp", tmp);
+    if (loader === "portable") {
+      new Deno.Command(Deno.execPath(), {
+        args: ["cache", "--node-modules-dir", entryPoint],
+        cwd: tmp,
+      }).outputSync();
+    }
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader, nodeModulesDir: true })],
+      bundle: true,
+      absWorkingDir: tmp,
+      entryPoints: [entryPoint],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(!output.text.includes(`npm:`));
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: html } = await import(dataURL);
+    assertEquals(html, "<div>hello world</div>");
+  },
+);
+
+test(
+  "npm specifiers local resolver - react",
+  LOADERS,
+  async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const tmp = Deno.makeTempDirSync();
+    const entryPoint =
+      new URL("./testdata/npm/preact.tsx", import.meta.url).href;
+    if (loader === "portable") {
+      new Deno.Command(Deno.execPath(), {
+        args: ["cache", "--node-modules-dir", entryPoint],
+        cwd: tmp,
+      }).outputSync();
+    }
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader, nodeModulesDir: true })],
+      bundle: true,
+      absWorkingDir: tmp,
+      entryPoints: [entryPoint],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(!output.text.includes(`npm:`));
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: html } = await import(dataURL);
+    assertEquals(html, "<div>hello world</div>");
+  },
+);
 
 test("remote http redirects are de-duped", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({

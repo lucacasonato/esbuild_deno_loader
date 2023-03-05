@@ -51,6 +51,15 @@ export interface DenoPluginsOptions {
    * determine what import map to use, if any.
    */
   importMapURL?: string;
+  /**
+   * Specify whether to generate and use a local `node_modules` directory when
+   * using the `native` loader. This is equivalent to the `--node-modules-dir`
+   * flag to the Deno executable.
+   *
+   * This option is ignored when using the `portable` loader, as the portable
+   * loader always uses a local `node_modules` directory.
+   */
+  nodeModulesDir?: boolean;
 }
 
 export function denoPlugins(opts: DenoPluginsOptions = {}): esbuild.Plugin[] {
