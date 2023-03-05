@@ -69,6 +69,7 @@ export interface InfoOptions {
   config?: string;
   importMap?: string;
   lock?: string;
+  nodeModulesDir?: boolean;
 }
 
 let tmpDir: string | undefined;
@@ -98,6 +99,9 @@ async function info(
   // } else if (!options.cwd) {
   //   opts.args.push("--no-lock");
   // }
+  if (options.nodeModulesDir) {
+    opts.args.push("--node-modules-dir");
+  }
   if (options.cwd) {
     opts.cwd = options.cwd;
   } else {

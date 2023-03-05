@@ -28,6 +28,8 @@ export interface DenoResolverPluginOptions {
   importMapURL?: string;
 }
 
+export const IN_NODE_MODULES = Symbol("IN_NODE_MODULES");
+
 /**
  * The Deno resolver plugin performs relative->absolute specifier resolution
  * and import map resolution.
@@ -42,8 +44,11 @@ export function denoResolverPlugin(
     name: "deno-resolver",
     setup(build) {
       let importMap: ImportMap | null = null;
+      let nodeModulesPaths: Set<string>;
 
       build.onStart(async function onStart() {
+        nodeModulesPaths = new Set<string>();
+
         let importMapURL: string | undefined;
 
         // If no import map URL is specified, and a config is specified, we try
@@ -78,6 +83,23 @@ export function denoResolverPlugin(
       });
 
       build.onResolve({ filter: /.*/ }, async function onResolve(args) {
+        // If this is a node_modules internal resolution, just pass it through.
+        // Internal resolution is detected by either the "IN_NODE_MODULES" flag
+        // being set on the resolve args through the pluginData field, or by
+        // the importer being in the nodeModulesPaths set.
+        if (args.pluginData === IN_NODE_MODULES) return undefined;
+        if (nodeModulesPaths.has(args.importer)) {
+          const res = await build.resolve(args.path, {
+            importer: args.importer,
+            namespace: args.namespace,
+            kind: args.kind,
+            resolveDir: args.resolveDir,
+            pluginData: IN_NODE_MODULES,
+          });
+          if (!res.external) nodeModulesPaths.add(res.path);
+          return res;
+        }
+
         // The first pass resolver performs synchronous resolution. This
         // includes relative to absolute specifier resolution and import map
         // resolution.
@@ -105,7 +127,7 @@ export function denoResolverPlugin(
           const res = resolveModuleSpecifier(
             args.path,
             importMap,
-            new URL(referrer) || undefined,
+            new URL(referrer),
           );
           resolved = new URL(res);
         } else {
@@ -116,10 +138,12 @@ export function denoResolverPlugin(
         // pass. Now plugins can perform any resolution they want on the fully
         // resolved specifier.
         const { path, namespace } = urlToEsbuildResolution(resolved);
-        return await build.resolve(path, {
+        const res = await build.resolve(path, {
           namespace,
           kind: args.kind,
         });
+        if (res.pluginData === IN_NODE_MODULES) nodeModulesPaths.add(res.path);
+        return res;
       });
     },
   };

@@ -2,6 +2,7 @@ import type * as esbuild from "https://deno.land/x/esbuild@v0.17.11/mod.d.ts";
 export type { esbuild };
 export {
   fromFileUrl,
+  join,
   resolve,
   toFileUrl,
 } from "https://deno.land/std@0.173.0/path/mod.ts";

@@ -4,6 +4,7 @@ import {
   Loader,
   LoaderResolution,
   mediaTypeToLoader,
+  parseNpmSpecifier,
   transformRawIntoContent,
 } from "./shared.ts";
 
@@ -22,8 +23,19 @@ export class NativeLoader implements Loader {
     const entry = await this.#infoCache.get(specifier.href);
     if ("error" in entry) throw new Error(entry.error);
 
-    if (entry.kind === "npm" || entry.kind === "node") {
-      throw new Error("Unsupported module kind: " + entry.kind);
+    if (entry.kind === "npm") {
+      // TODO(lucacasonato): remove parsing once https://github.com/denoland/deno/issues/18043 is resolved
+      const parsed = parseNpmSpecifier(new URL(entry.specifier));
+      return {
+        kind: "npm",
+        packageName: parsed.name,
+        path: parsed.path ?? "",
+      };
+    } else if (entry.kind === "node") {
+      return {
+        kind: "node",
+        path: entry.specifier,
+      };
     }
 
     return { kind: "esm", specifier: new URL(entry.specifier) };
