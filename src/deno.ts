@@ -44,46 +44,28 @@ export async function info(
   specifier: URL,
   options: DenoInfoOptions,
 ): Promise<InfoOutput> {
-  const cmd = [
-    Deno.execPath(),
+  const args = [
     "info",
     "--json",
   ];
   if (options.importMap !== undefined) {
-    cmd.push("--import-map", options.importMap);
+    args.push("--import-map", options.importMap);
   }
-  cmd.push(specifier.href);
+  args.push(specifier.href);
 
   if (!tempDir) {
     tempDir = Deno.makeTempDirSync();
   }
 
-  let proc;
-
-  try {
-    proc = Deno.run({
-      cmd,
-      stdout: "piped",
-      cwd: tempDir,
-    });
-    const raw = await proc.output();
-    const status = await proc.status();
-    if (!status.success) {
-      throw new Error(`Failed to call 'deno info' on '${specifier.href}'`);
-    }
-    const txt = new TextDecoder().decode(raw);
-    return JSON.parse(txt);
-  } finally {
-    try {
-      proc?.stdout.close();
-    } catch (err) {
-      if (err instanceof Deno.errors.BadResource) {
-        // ignore the error
-      } else {
-        // deno-lint-ignore no-unsafe-finally
-        throw err;
-      }
-    }
-    proc?.close();
+  const output = await new Deno.Command(Deno.execPath(), {
+    args,
+    cwd: tempDir,
+    stdout: "piped",
+    stderr: "inherit",
+  }).output();
+  if (!output.success) {
+    throw new Error(`Failed to call 'deno info' on '${specifier.href}'`);
   }
+  const txt = new TextDecoder().decode(output.stdout);
+  return JSON.parse(txt);
 }

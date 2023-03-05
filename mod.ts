@@ -30,9 +30,8 @@ export interface DenoPluginOptions {
 
 /** The default loader to use. */
 export const DEFAULT_LOADER: "native" | "portable" =
-  await Deno.permissions.query({ name: "run" }).then((res) =>
-      res.state !== "granted"
-    )
+  await Deno.permissions.query({ name: "run" })
+      .then((res) => res.state !== "granted")
     ? "portable"
     : "native";
 
