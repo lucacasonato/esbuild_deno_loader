@@ -1,65 +1,50 @@
 import { esbuild, fromFileUrl } from "../deps.ts";
 import * as deno from "./deno.ts";
-import { mediaTypeToLoader, transformRawIntoContent } from "./shared.ts";
+import {
+  Loader,
+  LoaderOptions,
+  LoaderResolution,
+  mediaTypeToLoader,
+  transformRawIntoContent,
+} from "./shared.ts";
 
-export interface LoadOptions {
-  importMapURL?: URL;
-}
+export class NativeLoader implements Loader {
+  #infoCache: deno.InfoCache;
 
-export async function load(
-  infoCache: Map<string, deno.ModuleEntry>,
-  url: URL,
-  options: LoadOptions,
-): Promise<esbuild.OnLoadResult | null> {
-  switch (url.protocol) {
-    case "http:":
-    case "https:":
-    case "data:":
-      return await loadFromCLI(infoCache, url, options);
-    case "file:": {
-      const res = await loadFromCLI(infoCache, url, options);
-      res.watchFiles = [fromFileUrl(url.href)];
-      return res;
-    }
-  }
-  return null;
-}
-
-async function loadFromCLI(
-  infoCache: Map<string, deno.ModuleEntry>,
-  specifier: URL,
-  options: LoadOptions,
-): Promise<esbuild.OnLoadResult> {
-  const specifierRaw = specifier.href;
-  if (!infoCache.has(specifierRaw)) {
-    const { modules, redirects } = await deno.info(specifier, {
+  constructor(options: LoaderOptions) {
+    this.#infoCache = new deno.InfoCache({
       importMap: options.importMapURL?.href,
     });
-    for (const module of modules) {
-      infoCache.set(module.specifier, module);
-    }
-    for (const [specifier, redirect] of Object.entries(redirects)) {
-      const redirected = infoCache.get(redirect);
-      if (!redirected) {
-        throw new TypeError("Unreachable.");
-      }
-      infoCache.set(specifier, redirected);
-    }
   }
 
-  const module = infoCache.get(specifierRaw);
-  if (!module) {
-    throw new TypeError("Unreachable.");
+  async resolve(specifier: URL): Promise<LoaderResolution> {
+    const entry = await this.#infoCache.get(specifier.href);
+    if ("error" in entry) throw new Error(entry.error);
+
+    if (entry.kind === "npm" || entry.kind === "node") {
+      throw new Error("Unsupported module kind: " + entry.kind);
+    }
+
+    return { kind: "esm", specifier: new URL(entry.specifier) };
   }
 
-  if (module.error) throw new Error(module.error);
-  if (!module.local) throw new Error("Module not downloaded yet.");
-  const mediaType = module.mediaType ?? "Unknown";
+  async loadEsm(specifier: string): Promise<esbuild.OnLoadResult> {
+    const entry = await this.#infoCache.get(specifier);
+    if ("error" in entry) throw new Error(entry.error);
 
-  const loader = mediaTypeToLoader(mediaType);
+    if (!("local" in entry)) {
+      throw new Error("[unreachable] Not an ESM module.");
+    }
+    if (!entry.local) throw new Error("Module not downloaded yet.");
+    const loader = mediaTypeToLoader(entry.mediaType);
 
-  const raw = await Deno.readFile(module.local);
-  const contents = transformRawIntoContent(raw, mediaType);
+    const raw = await Deno.readFile(entry.local);
+    const contents = transformRawIntoContent(raw, entry.mediaType);
 
-  return { contents, loader };
+    const res: esbuild.OnLoadResult = { contents, loader };
+    if (specifier.startsWith("file://")) {
+      res.watchFiles = [fromFileUrl(specifier)];
+    }
+    return res;
+  }
 }

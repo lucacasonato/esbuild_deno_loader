@@ -1,6 +1,22 @@
 import { esbuild } from "../deps.ts";
 import { MediaType } from "./deno.ts";
 
+export interface Loader {
+  resolve(specifier: URL): Promise<LoaderResolution>;
+  loadEsm(specifier: string): Promise<esbuild.OnLoadResult>;
+}
+
+export type LoaderResolution = LoaderResolutionEsm;
+
+export interface LoaderResolutionEsm {
+  kind: "esm";
+  specifier: URL;
+}
+
+export interface LoaderOptions {
+  importMapURL?: URL;
+}
+
 export function mediaTypeToLoader(mediaType: MediaType): esbuild.Loader {
   switch (mediaType) {
     case "JavaScript":

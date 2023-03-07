@@ -28,6 +28,7 @@ test("remote ts", ALL, async (loader) => {
     entryPoints: ["https://deno.land/std@0.173.0/collections/without_all.ts"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -43,6 +44,7 @@ test("local ts", ALL, async (loader) => {
     entryPoints: ["./testdata/mod.ts"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -60,6 +62,7 @@ test("remote mts", ALL, async (loader) => {
     ],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -75,6 +78,7 @@ test("local mts", ALL, async (loader) => {
     entryPoints: ["./testdata/mod.mts"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -90,6 +94,7 @@ test("remote js", ALL, async (loader) => {
     entryPoints: ["https://crux.land/266TSp"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -105,6 +110,7 @@ test("local js", ALL, async (loader) => {
     entryPoints: ["./testdata/mod.js"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -122,6 +128,7 @@ test("remote mjs", ALL, async (loader) => {
     ],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -137,6 +144,7 @@ test("local mjs", ALL, async (loader) => {
     entryPoints: ["./testdata/mod.mjs"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -152,6 +160,7 @@ test("remote jsx", ALL, async (loader) => {
     entryPoints: ["https://crux.land/GeaWJ"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -167,6 +176,7 @@ test("local jsx", ALL, async (loader) => {
     entryPoints: ["./testdata/mod.jsx"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -182,6 +192,7 @@ test("remote tsx", ALL, async (loader) => {
     entryPoints: ["https://crux.land/2Qjyo7"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -197,6 +208,7 @@ test("local tsx", ALL, async (loader) => {
     entryPoints: ["./testdata/mod.tsx"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -214,6 +226,7 @@ test("bundle remote imports", ALL, async (loader) => {
     entryPoints: ["https://deno.land/std@0.173.0/uuid/mod.ts"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -235,6 +248,7 @@ test("bundle import map", ALL, async (loader) => {
     entryPoints: ["./testdata/importmap.js"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -251,6 +265,7 @@ test("local json", ALL, async (loader) => {
     entryPoints: ["./testdata/data.json"],
   });
   assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
   assertEquals(res.outputFiles.length, 1);
   const output = res.outputFiles[0];
   assertEquals(output.path, "<stdout>");
@@ -262,4 +277,21 @@ test("local json", ALL, async (loader) => {
       "sky": "universe",
     },
   });
+});
+
+test("remote http redirects are de-duped", ALL, async (loader) => {
+  const res = await esbuild.build({
+    plugins: [denoPlugin({ loader })],
+    write: false,
+    bundle: true,
+    format: "esm",
+    entryPoints: ["./testdata/remote_redirects.js"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const matches = [...output.text.matchAll(/0\.178\.0/g)];
+  assertEquals(matches.length, 2); // once in the comment, once in the code
 });

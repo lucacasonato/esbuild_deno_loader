@@ -1,66 +1,139 @@
 import { esbuild, extname, fromFileUrl } from "../deps.ts";
 import * as deno from "./deno.ts";
-import { mediaTypeToLoader, transformRawIntoContent } from "./shared.ts";
+import {
+  Loader,
+  LoaderResolution,
+  mediaTypeToLoader,
+  transformRawIntoContent,
+} from "./shared.ts";
 
-export interface LoadOptions {
-  importMapURL?: URL;
+interface Module {
+  specifier: string;
+  mediaType: deno.MediaType;
+  data: Uint8Array;
 }
 
-export async function load(
-  url: URL,
-  _options: LoadOptions,
-): Promise<esbuild.OnLoadResult | null> {
-  switch (url.protocol) {
-    case "http:":
-    case "https:":
-    case "data:":
-      return await loadWithFetch(url);
-    case "file:": {
-      const res = await loadWithReadFile(url);
-      res.watchFiles = [fromFileUrl(url.href)];
-      return res;
+export class PortableLoader implements Loader {
+  #fetchOngoing = new Map<string, Promise<void>>();
+
+  #fetchModules = new Map<string, Module>();
+  #fetchRedirects = new Map<string, string>();
+
+  async resolve(specifier: URL): Promise<LoaderResolution> {
+    switch (specifier.protocol) {
+      case "file:": {
+        return { kind: "esm", specifier };
+      }
+      case "http:":
+      case "https:":
+      case "data:": {
+        const module = await this.#loadRemote(specifier.href);
+        return { kind: "esm", specifier: new URL(module.specifier) };
+      }
+      default:
+        throw new Error(`Unsupported scheme: '${specifier.protocol}'`);
     }
   }
-  return null;
-}
 
-async function loadWithFetch(
-  specifier: URL,
-): Promise<esbuild.OnLoadResult> {
-  const specifierRaw = specifier.href;
+  async loadEsm(specifier: string): Promise<esbuild.OnLoadResult> {
+    const url = new URL(specifier);
+    let module: Module;
+    switch (url.protocol) {
+      case "file:": {
+        module = await this.#loadLocal(url);
+        break;
+      }
+      case "http:":
+      case "https:":
+      case "data:": {
+        module = await this.#loadRemote(specifier);
+        break;
+      }
+      default:
+        throw new Error("[unreachable] unsupported esm scheme " + url.protocol);
+    }
 
-  // TODO(lucacasonato): redirects!
-  const resp = await fetch(specifierRaw);
-  if (!resp.ok) {
-    throw new Error(
-      `Encountered status code ${resp.status} while fetching ${specifierRaw}.`,
-    );
+    const loader = mediaTypeToLoader(module.mediaType);
+    const contents = transformRawIntoContent(module.data, module.mediaType);
+
+    const res: esbuild.OnLoadResult = { contents, loader };
+    if (module.specifier.startsWith("file://")) {
+      res.watchFiles = [fromFileUrl(module.specifier)];
+    }
+    return res;
   }
 
-  const contentType = resp.headers.get("content-type");
-  const mediaType = mapContentType(
-    new URL(resp.url || specifierRaw),
-    contentType,
-  );
+  #resolveRemote(specifier: string): string {
+    return this.#fetchRedirects.get(specifier) ?? specifier;
+  }
 
-  const loader = mediaTypeToLoader(mediaType);
+  async #loadRemote(specifier: string): Promise<Module> {
+    for (let i = 0; i < 10; i++) {
+      specifier = this.#resolveRemote(specifier);
+      const module = this.#fetchModules.get(specifier);
+      if (module) return module;
 
-  const raw = new Uint8Array(await resp.arrayBuffer());
-  const contents = transformRawIntoContent(raw, mediaType);
+      let promise = this.#fetchOngoing.get(specifier);
+      if (!promise) {
+        promise = this.#fetch(specifier);
+        this.#fetchOngoing.set(specifier, promise);
+      }
 
-  return { contents, loader };
-}
+      await promise;
+    }
 
-async function loadWithReadFile(specifier: URL): Promise<esbuild.OnLoadResult> {
-  const path = fromFileUrl(specifier);
+    throw new Error("Too many redirects. Last one: " + specifier);
+  }
 
-  const mediaType = mapContentType(specifier, null);
-  const loader = mediaTypeToLoader(mediaType);
+  async #fetch(specifier: string): Promise<void> {
+    const resp = await fetch(specifier, {
+      redirect: "manual",
+    });
+    if (resp.status < 200 && resp.status >= 400) {
+      throw new Error(
+        `Encountered status code ${resp.status} while fetching ${specifier}.`,
+      );
+    }
 
-  const raw = await Deno.readFile(path);
-  const contents = transformRawIntoContent(raw, mediaType);
+    if (resp.status >= 300 && resp.status < 400) {
+      await resp.body?.cancel();
+      const location = resp.headers.get("location");
+      if (!location) {
+        throw new Error(
+          `Redirected without location header while fetching ${specifier}.`,
+        );
+      }
 
-  return { contents, loader };
+      const url = new URL(location, specifier);
+      if (url.protocol !== "https:" && url.protocol !== "http:") {
+        throw new Error(
+          `Redirected to unsupported protocol '${url.protocol}' while fetching ${specifier}.`,
+        );
+      }
+
+      this.#fetchRedirects.set(specifier, url.href);
+      return;
+    }
+
+    const contentType = resp.headers.get("content-type");
+    const mediaType = mapContentType(new URL(specifier), contentType);
+
+    const data = new Uint8Array(await resp.arrayBuffer());
+    this.#fetchModules.set(specifier, {
+      specifier,
+      mediaType,
+      data,
+    });
+  }
+
+  async #loadLocal(specifier: URL): Promise<Module> {
+    const path = fromFileUrl(specifier);
+
+    const mediaType = mapContentType(specifier, null);
+    const data = await Deno.readFile(path);
+
+    return { specifier: specifier.href, mediaType, data };
+  }
 }
 
 function mapContentType(
