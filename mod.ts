@@ -98,7 +98,9 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
             return portableLoad(url, options);
         }
       }
-      build.onLoad({ filter: /.*\.json/, namespace: "file" }, onLoad);
+      // TODO(lucacasonato): once https://github.com/evanw/esbuild/pull/2968 is fixed, remove the catch all "file" handler
+      // build.onLoad({ filter: /.*\.json/, namespace: "file" }, onLoad);
+      build.onLoad({ filter: /.*/, namespace: "file" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "http" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "https" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "data" }, onLoad);
