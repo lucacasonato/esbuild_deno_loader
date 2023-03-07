@@ -1,30 +1,50 @@
 import { denoPlugin } from "./mod.ts";
-import { esbuild } from "./test_deps.ts";
+import { esbuildNative, esbuildWasm } from "./test_deps.ts";
 import { assert, assertEquals } from "./test_deps.ts";
 
-const ALL = ["native", "portable"] as const;
+const LOADERS = ["native", "portable"] as const;
+const PLATFORMS = { "native": esbuildNative, "wasm": esbuildWasm };
+
+const DEFAULT_OPTS = {
+  write: false,
+  format: "esm",
+  // TODO(lucacasonato): remove when https://github.com/evanw/esbuild/pull/2968 is fixed
+  absWorkingDir: Deno.cwd(),
+} as const;
 
 function test(
   name: string,
   loaders: readonly ("native" | "portable")[],
-  fn: (loader: "native" | "portable") => Promise<void>,
+  fn: (
+    esbuild: typeof esbuildNative,
+    loader: "native" | "portable",
+  ) => Promise<void>,
 ) {
-  for (const loader of loaders) {
-    Deno.test(`[${loader}] ${name}`, async () => {
-      try {
-        await esbuild.initialize({});
-        await fn(loader);
-      } finally {
-        esbuild.stop();
-      }
-    });
+  for (const [platform, esbuild] of Object.entries(PLATFORMS)) {
+    for (const loader of loaders) {
+      Deno.test({
+        name: `[${loader}, ${platform}] ${name}`,
+        ignore: platform === "wasm" && Deno.build.os === "windows",
+        fn: async () => {
+          try {
+            await esbuild.initialize({});
+            await fn(esbuild, loader);
+          } finally {
+            esbuild.stop();
+          }
+          // Let esbuild cleanup finish closing resources and cancelling async
+          // tasks. This should take just 1 event loop tick.
+          await new Promise((r) => setTimeout(r, 5));
+        },
+      });
+    }
   }
 }
 
-test("remote ts", ALL, async (loader) => {
+test("remote ts", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     entryPoints: ["https://deno.land/std@0.173.0/collections/without_all.ts"],
   });
   assertEquals(res.warnings, []);
@@ -37,10 +57,10 @@ test("remote ts", ALL, async (loader) => {
   assertEquals(withoutAll([1, 2, 3], [2, 3, 4]), [1]);
 });
 
-test("local ts", ALL, async (loader) => {
+test("local ts", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     entryPoints: ["./testdata/mod.ts"],
   });
   assertEquals(res.warnings, []);
@@ -53,10 +73,10 @@ test("local ts", ALL, async (loader) => {
   assertEquals(bool, "asd2");
 });
 
-test("remote mts", ALL, async (loader) => {
+test("remote mts", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     entryPoints: [
       "https://gist.githubusercontent.com/lucacasonato/4ad57db57ee8d44e4ec08d6a912e93a7/raw/f33e698b4445a7243d72dbfe95afe2d004c7ffc6/mod.mts",
     ],
@@ -71,10 +91,10 @@ test("remote mts", ALL, async (loader) => {
   assertEquals(bool, "asd2");
 });
 
-test("local mts", ALL, async (loader) => {
+test("local mts", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     entryPoints: ["./testdata/mod.mts"],
   });
   assertEquals(res.warnings, []);
@@ -87,10 +107,10 @@ test("local mts", ALL, async (loader) => {
   assertEquals(bool, "asd2");
 });
 
-test("remote js", ALL, async (loader) => {
+test("remote js", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     entryPoints: ["https://crux.land/266TSp"],
   });
   assertEquals(res.warnings, []);
@@ -103,10 +123,10 @@ test("remote js", ALL, async (loader) => {
   assertEquals(bool, "asd");
 });
 
-test("local js", ALL, async (loader) => {
+test("local js", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     entryPoints: ["./testdata/mod.js"],
   });
   assertEquals(res.warnings, []);
@@ -119,10 +139,10 @@ test("local js", ALL, async (loader) => {
   assertEquals(bool, "asd");
 });
 
-test("remote mjs", ALL, async (loader) => {
+test("remote mjs", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     entryPoints: [
       "https://gist.githubusercontent.com/lucacasonato/4ad57db57ee8d44e4ec08d6a912e93a7/raw/f33e698b4445a7243d72dbfe95afe2d004c7ffc6/mod.mjs",
     ],
@@ -137,10 +157,10 @@ test("remote mjs", ALL, async (loader) => {
   assertEquals(bool, "asd");
 });
 
-test("local mjs", ALL, async (loader) => {
+test("local mjs", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     entryPoints: ["./testdata/mod.mjs"],
   });
   assertEquals(res.warnings, []);
@@ -153,10 +173,10 @@ test("local mjs", ALL, async (loader) => {
   assertEquals(bool, "asd");
 });
 
-test("remote jsx", ALL, async (loader) => {
+test("remote jsx", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     entryPoints: ["https://crux.land/GeaWJ"],
   });
   assertEquals(res.warnings, []);
@@ -169,10 +189,10 @@ test("remote jsx", ALL, async (loader) => {
   assertEquals(m.default, "foo");
 });
 
-test("local jsx", ALL, async (loader) => {
+test("local jsx", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     entryPoints: ["./testdata/mod.jsx"],
   });
   assertEquals(res.warnings, []);
@@ -185,10 +205,10 @@ test("local jsx", ALL, async (loader) => {
   assertEquals(m.default, "foo");
 });
 
-test("remote tsx", ALL, async (loader) => {
+test("remote tsx", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     entryPoints: ["https://crux.land/2Qjyo7"],
   });
   assertEquals(res.warnings, []);
@@ -201,10 +221,10 @@ test("remote tsx", ALL, async (loader) => {
   assertEquals(m.default, "foo");
 });
 
-test("local tsx", ALL, async (loader) => {
+test("local tsx", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     entryPoints: ["./testdata/mod.tsx"],
   });
   assertEquals(res.warnings, []);
@@ -217,10 +237,10 @@ test("local tsx", ALL, async (loader) => {
   assertEquals(m.default, "foo");
 });
 
-test("bundle remote imports", ALL, async (loader) => {
+test("bundle remote imports", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
     bundle: true,
     platform: "neutral",
     entryPoints: ["https://deno.land/std@0.173.0/uuid/mod.ts"],
@@ -237,12 +257,12 @@ test("bundle remote imports", ALL, async (loader) => {
 
 const importMapURL = new URL("./testdata/importmap.json", import.meta.url);
 
-test("bundle import map", ALL, async (loader) => {
+test("bundle import map", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [
       denoPlugin({ importMapURL, loader }),
     ],
-    write: false,
     bundle: true,
     platform: "neutral",
     entryPoints: ["./testdata/importmap.js"],
@@ -257,11 +277,10 @@ test("bundle import map", ALL, async (loader) => {
   assertEquals(bool, "asd2");
 });
 
-test("local json", ALL, async (loader) => {
+test("local json", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
+    ...DEFAULT_OPTS,
     plugins: [denoPlugin({ loader })],
-    write: false,
-    format: "esm",
     entryPoints: ["./testdata/data.json"],
   });
   assertEquals(res.warnings, []);
