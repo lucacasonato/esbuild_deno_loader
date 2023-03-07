@@ -6,9 +6,9 @@ import {
   resolveModuleSpecifier,
   toFileUrl,
 } from "./deps.ts";
-import { load as nativeLoad } from "./src/native_loader.ts";
-import { load as portableLoad } from "./src/portable_loader.ts";
-import { ModuleEntry } from "./src/deno.ts";
+import { NativeLoader } from "./src/native_loader.ts";
+import { PortableLoader } from "./src/portable_loader.ts";
+import { Loader } from "./src/shared.ts";
 
 export interface DenoPluginOptions {
   /**
@@ -40,7 +40,7 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
   return {
     name: "deno",
     setup(build) {
-      const infoCache = new Map<string, ModuleEntry>();
+      let loaderImpl: Loader;
       let importMap: ImportMap | null = null;
 
       build.onStart(async function onStart() {
@@ -51,11 +51,21 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
         } else {
           importMap = null;
         }
+        switch (loader) {
+          case "native":
+            loaderImpl = new NativeLoader({
+              importMapURL: options.importMapURL,
+            });
+            break;
+          case "portable":
+            loaderImpl = new PortableLoader();
+        }
       });
 
-      build.onResolve({ filter: /.*/ }, function onResolve(
+      build.onResolve({ filter: /.*/ }, async function onResolve(
         args: esbuild.OnResolveArgs,
-      ): esbuild.OnResolveResult | null | undefined {
+      ): Promise<esbuild.OnResolveResult | null | undefined> {
+        // Resolve to an absolute specifier using import map and referrer.
         const resolveDir = args.resolveDir
           ? `${toFileUrl(args.resolveDir).href}/`
           : "";
@@ -73,30 +83,35 @@ export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
         } else {
           resolved = new URL(args.path, referrer);
         }
-        const protocol = resolved.protocol;
-        if (protocol === "file:") {
-          const path = fromFileUrl(resolved);
-          return { path, namespace: "file" };
+
+        // Once we have an absolute path, let the loader resolver figure out
+        // what to do with it.
+        const res = await loaderImpl.resolve(resolved);
+
+        switch (res.kind) {
+          case "esm": {
+            const { specifier } = res;
+            if (specifier.protocol === "file:") {
+              const path = fromFileUrl(specifier);
+              return { path, namespace: "file" };
+            } else {
+              const path = specifier.href.slice(specifier.protocol.length);
+              return { path, namespace: specifier.protocol.slice(0, -1) };
+            }
+          }
         }
-        const path = resolved.href.slice(protocol.length);
-        return { path, namespace: protocol.slice(0, -1) };
       });
 
       function onLoad(
         args: esbuild.OnLoadArgs,
       ): Promise<esbuild.OnLoadResult | null> {
-        let url;
+        let specifier;
         if (args.namespace === "file") {
-          url = toFileUrl(args.path);
+          specifier = toFileUrl(args.path).href;
         } else {
-          url = new URL(`${args.namespace}:${args.path}`);
+          specifier = `${args.namespace}:${args.path}`;
         }
-        switch (loader) {
-          case "native":
-            return nativeLoad(infoCache, url, options);
-          case "portable":
-            return portableLoad(url, options);
-        }
+        return loaderImpl.loadEsm(specifier);
       }
       build.onLoad({ filter: /.*\.json/, namespace: "file" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "http" }, onLoad);
