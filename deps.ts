@@ -1,4 +1,4 @@
-import type * as esbuild from "https://deno.land/x/esbuild@v0.17.2/mod.d.ts";
+import type * as esbuild from "https://deno.land/x/esbuild@v0.17.11/mod.d.ts";
 export type { esbuild };
 export {
   fromFileUrl,
