@@ -4,8 +4,8 @@ export {
   fromFileUrl,
   resolve,
   toFileUrl,
-} from "https://deno.land/std@0.173.0/path/mod.ts";
-export { basename, extname } from "https://deno.land/std@0.173.0/path/mod.ts";
+} from "https://deno.land/std@0.178.0/path/mod.ts";
+export { basename, extname } from "https://deno.land/std@0.178.0/path/mod.ts";
 export {
   resolveImportMap,
   resolveModuleSpecifier,
