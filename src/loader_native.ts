@@ -2,19 +2,20 @@ import { esbuild, fromFileUrl } from "../deps.ts";
 import * as deno from "./deno.ts";
 import {
   Loader,
-  LoaderOptions,
   LoaderResolution,
   mediaTypeToLoader,
   transformRawIntoContent,
 } from "./shared.ts";
 
+export interface NativeLoaderOptions {
+  infoOptions?: deno.InfoOptions;
+}
+
 export class NativeLoader implements Loader {
   #infoCache: deno.InfoCache;
 
-  constructor(options: LoaderOptions) {
-    this.#infoCache = new deno.InfoCache({
-      importMap: options.importMapURL?.href,
-    });
+  constructor(options: NativeLoaderOptions) {
+    this.#infoCache = new deno.InfoCache(options.infoOptions);
   }
 
   async resolve(specifier: URL): Promise<LoaderResolution> {
@@ -28,8 +29,8 @@ export class NativeLoader implements Loader {
     return { kind: "esm", specifier: new URL(entry.specifier) };
   }
 
-  async loadEsm(specifier: string): Promise<esbuild.OnLoadResult> {
-    const entry = await this.#infoCache.get(specifier);
+  async loadEsm(specifier: URL): Promise<esbuild.OnLoadResult> {
+    const entry = await this.#infoCache.get(specifier.href);
     if ("error" in entry) throw new Error(entry.error);
 
     if (!("local" in entry)) {
@@ -42,7 +43,7 @@ export class NativeLoader implements Loader {
     const contents = transformRawIntoContent(raw, entry.mediaType);
 
     const res: esbuild.OnLoadResult = { contents, loader };
-    if (specifier.startsWith("file://")) {
+    if (specifier.protocol === "file:") {
       res.watchFiles = [fromFileUrl(specifier)];
     }
     return res;

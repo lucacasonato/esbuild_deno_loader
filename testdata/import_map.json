@@ -1,0 +1,6 @@
+{
+  "imports": {
+    "mod": "./mod.ts",
+    "mapped-computed": "computed:1+2"
+  }
+}
