@@ -64,33 +64,53 @@ export interface ModuleEntryNode extends ModuleEntryBase {
   moduleName: string;
 }
 
-interface InfoOptions {
+export interface InfoOptions {
+  cwd?: string;
+  config?: string;
   importMap?: string;
+  lock?: string;
 }
+
+let tmpDir: string | undefined;
 
 async function info(
   specifier: string,
   options: InfoOptions,
 ): Promise<InfoOutput> {
-  const args = [
-    "info",
-    "--json",
-    "--node-modules-dir",
-    "--no-config",
-  ];
-  if (options.importMap !== undefined) {
-    args.push("--import-map", options.importMap);
-  }
-  args.push(specifier);
-
-  const output = await new Deno.Command(Deno.execPath(), {
-    args,
-    env: {
-      DENO_NO_PACKAGE_JSON: "true",
-    },
+  const opts = {
+    args: ["info", "--json"],
+    cwd: undefined as string | undefined,
+    env: { DENO_NO_PACKAGE_JSON: "true" } as Record<string, string>,
     stdout: "piped",
     stderr: "inherit",
-  }).output();
+  };
+  if (typeof options.config === "string") {
+    opts.args.push("--config", options.config);
+  } else {
+    opts.args.push("--no-config");
+  }
+  if (options.importMap) {
+    opts.args.push("--import-map", options.importMap);
+  }
+  // TODO: enable when https://github.com/denoland/deno/issues/18159 is fixed
+  // if (typeof options.lock === "string") {
+  //   opts.args.push("--lock", options.lock);
+  // } else if (!options.cwd) {
+  //   opts.args.push("--no-lock");
+  // }
+  if (options.cwd) {
+    opts.cwd = options.cwd;
+  } else {
+    if (!tmpDir) tmpDir = Deno.makeTempDirSync();
+    opts.cwd = tmpDir;
+  }
+
+  opts.args.push(specifier);
+
+  const output = await new Deno.Command(
+    Deno.execPath(),
+    opts as Deno.CommandOptions,
+  ).output();
   if (!output.success) {
     throw new Error(`Failed to call 'deno info' on '${specifier}'`);
   }
@@ -104,7 +124,7 @@ export class InfoCache {
   #modules: Map<string, ModuleEntry> = new Map();
   #redirects: Map<string, string> = new Map();
 
-  constructor(options: InfoOptions) {
+  constructor(options: InfoOptions = {}) {
     this.#options = options;
   }
 

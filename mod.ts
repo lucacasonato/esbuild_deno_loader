@@ -1,124 +1,63 @@
-import {
-  esbuild,
-  fromFileUrl,
-  ImportMap,
-  resolveImportMap,
-  resolveModuleSpecifier,
-  toFileUrl,
-} from "./deps.ts";
-import { NativeLoader } from "./src/native_loader.ts";
-import { PortableLoader } from "./src/portable_loader.ts";
-import { Loader } from "./src/shared.ts";
+import { esbuild } from "./deps.ts";
 
-export interface DenoPluginOptions {
-  /**
-   * Specify the URL to an import map to use when resolving import specifiers.
-   * The URL must be fetchable with `fetch`.
-   */
-  importMapURL?: URL;
+import {
+  denoResolverPlugin,
+  type DenoResolverPluginOptions,
+  type ImportMap,
+  type Scopes,
+  type SpecifierMap,
+} from "./src/plugin_deno_resolver.ts";
+export {
+  denoResolverPlugin,
+  DenoResolverPluginOptions,
+  ImportMap,
+  Scopes,
+  SpecifierMap,
+};
+
+import {
+  DEFAULT_LOADER,
+  denoLoaderPlugin,
+  type DenoLoaderPluginOptions,
+} from "./src/plugin_deno_loader.ts";
+export { DEFAULT_LOADER, denoLoaderPlugin, DenoLoaderPluginOptions };
+
+export {
+  type EsbuildResolution,
+  esbuildResolutionToURL,
+  urlToEsbuildResolution,
+} from "./src/shared.ts";
+
+export interface DenoPluginsOptions {
   /**
    * Specify which loader to use. By default this will use the `native` loader,
    * unless the `--allow-run` permission has not been given.
    *
-   * - `native`:     Shells out to the Deno execuatble under the hood to load
-   *                 files. Requires --allow-read and --allow-run.
-   * - `portable`:   Do module downloading and caching with only Web APIs.
-   *                 Requires --allow-read and/or --allow-net.
+   * See {@link denoLoaderPlugin} for more information on the different loaders.
    */
   loader?: "native" | "portable";
+
+  /**
+   * Specify the path to a deno.json config file to use. This is equivalent to
+   * the `--config` flag to the Deno executable. This path must be absolute.
+   */
+  configPath?: string;
+  /**
+   * Specify a URL to an import map file to use when resolving import
+   * specifiers. This is equivalent to the `--import-map` flag to the Deno
+   * executable. This URL may be remote or a local file URL.
+   *
+   * If this option is not specified, the deno.json config file is consulted to
+   * determine what import map to use, if any.
+   */
+  importMapURL?: string;
 }
 
-/** The default loader to use. */
-export const DEFAULT_LOADER: "native" | "portable" =
-  await Deno.permissions.query({ name: "run" })
-      .then((res) => res.state !== "granted")
-    ? "portable"
-    : "native";
-
-export function denoPlugin(options: DenoPluginOptions = {}): esbuild.Plugin {
-  const loader = options.loader ?? DEFAULT_LOADER;
-  return {
-    name: "deno",
-    setup(build) {
-      let loaderImpl: Loader;
-      let importMap: ImportMap | null = null;
-
-      build.onStart(async function onStart() {
-        if (options.importMapURL !== undefined) {
-          const resp = await fetch(options.importMapURL.href);
-          const txt = await resp.text();
-          importMap = resolveImportMap(JSON.parse(txt), options.importMapURL);
-        } else {
-          importMap = null;
-        }
-        switch (loader) {
-          case "native":
-            loaderImpl = new NativeLoader({
-              importMapURL: options.importMapURL,
-            });
-            break;
-          case "portable":
-            loaderImpl = new PortableLoader();
-        }
-      });
-
-      build.onResolve({ filter: /.*/ }, async function onResolve(
-        args: esbuild.OnResolveArgs,
-      ): Promise<esbuild.OnResolveResult | null | undefined> {
-        // Resolve to an absolute specifier using import map and referrer.
-        const resolveDir = args.resolveDir
-          ? `${toFileUrl(args.resolveDir).href}/`
-          : "";
-        const referrer = args.importer
-          ? `${args.namespace}:${args.importer}`
-          : resolveDir;
-        let resolved: URL;
-        if (importMap !== null) {
-          const res = resolveModuleSpecifier(
-            args.path,
-            importMap,
-            new URL(referrer) || undefined,
-          );
-          resolved = new URL(res);
-        } else {
-          resolved = new URL(args.path, referrer);
-        }
-
-        // Once we have an absolute path, let the loader resolver figure out
-        // what to do with it.
-        const res = await loaderImpl.resolve(resolved);
-
-        switch (res.kind) {
-          case "esm": {
-            const { specifier } = res;
-            if (specifier.protocol === "file:") {
-              const path = fromFileUrl(specifier);
-              return { path, namespace: "file" };
-            } else {
-              const path = specifier.href.slice(specifier.protocol.length);
-              return { path, namespace: specifier.protocol.slice(0, -1) };
-            }
-          }
-        }
-      });
-
-      function onLoad(
-        args: esbuild.OnLoadArgs,
-      ): Promise<esbuild.OnLoadResult | null> {
-        let specifier;
-        if (args.namespace === "file") {
-          specifier = toFileUrl(args.path).href;
-        } else {
-          specifier = `${args.namespace}:${args.path}`;
-        }
-        return loaderImpl.loadEsm(specifier);
-      }
-      // TODO(lucacasonato): once https://github.com/evanw/esbuild/pull/2968 is fixed, remove the catch all "file" handler
-      // build.onLoad({ filter: /.*\.json/, namespace: "file" }, onLoad);
-      build.onLoad({ filter: /.*/, namespace: "file" }, onLoad);
-      build.onLoad({ filter: /.*/, namespace: "http" }, onLoad);
-      build.onLoad({ filter: /.*/, namespace: "https" }, onLoad);
-      build.onLoad({ filter: /.*/, namespace: "data" }, onLoad);
-    },
-  };
+export function denoPlugins(
+  opts: DenoLoaderPluginOptions = {},
+): esbuild.Plugin[] {
+  return [
+    denoResolverPlugin(opts),
+    denoLoaderPlugin(opts),
+  ];
 }

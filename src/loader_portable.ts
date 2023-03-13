@@ -35,8 +35,7 @@ export class PortableLoader implements Loader {
     }
   }
 
-  async loadEsm(specifier: string): Promise<esbuild.OnLoadResult> {
-    const url = new URL(specifier);
+  async loadEsm(url: URL): Promise<esbuild.OnLoadResult> {
     let module: Module;
     switch (url.protocol) {
       case "file:": {
@@ -46,7 +45,7 @@ export class PortableLoader implements Loader {
       case "http:":
       case "https:":
       case "data:": {
-        module = await this.#loadRemote(specifier);
+        module = await this.#loadRemote(url.href);
         break;
       }
       default:
@@ -57,7 +56,7 @@ export class PortableLoader implements Loader {
     const contents = transformRawIntoContent(module.data, module.mediaType);
 
     const res: esbuild.OnLoadResult = { contents, loader };
-    if (module.specifier.startsWith("file://")) {
+    if (url.protocol === "file:") {
       res.watchFiles = [fromFileUrl(module.specifier)];
     }
     return res;
