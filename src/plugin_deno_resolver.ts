@@ -105,7 +105,9 @@ export function denoResolverPlugin(
           const res = resolveModuleSpecifier(
             args.path,
             importMap,
-            new URL(referrer) || undefined,
+            args.importer.includes("<stdin>")
+              ? new URL(import.meta.url)
+              : new URL(referrer) || undefined,
           );
           resolved = new URL(res);
         } else {
