@@ -78,6 +78,7 @@ export function denoResolverPlugin(
       });
 
       build.onResolve({ filter: /.*/ }, async function onResolve(args) {
+        const isStdin = args.importer.includes("<stdin>");
         // The first pass resolver performs synchronous resolution. This
         // includes relative to absolute specifier resolution and import map
         // resolution.
@@ -88,7 +89,7 @@ export function denoResolverPlugin(
         // root).
         let referrer: URL;
         if (args.importer !== "") {
-          if (args.namespace === "") {
+          if (args.namespace === "" && !isStdin) {
             throw new Error("[assert] namespace is empty");
           }
           referrer = new URL(`${args.namespace}:${args.importer}`);
@@ -105,13 +106,11 @@ export function denoResolverPlugin(
           const res = resolveModuleSpecifier(
             args.path,
             importMap,
-            args.importer.includes("<stdin>")
-              ? new URL(import.meta.url)
-              : new URL(referrer) || undefined,
+            new URL(isStdin ? import.meta.url : referrer) || undefined,
           );
           resolved = new URL(res);
         } else {
-          resolved = new URL(args.path, referrer);
+          resolved = new URL(args.path, isStdin ? import.meta.url : referrer);
         }
 
         // Now pass the resolved specifier back into the resolver, for a second
