@@ -1,4 +1,4 @@
-import { esbuild, fromFileUrl, JSONC, toFileUrl } from "../deps.ts";
+import { esbuild, extname, fromFileUrl, JSONC, toFileUrl } from "../deps.ts";
 import { MediaType } from "./deno.ts";
 
 export interface Loader {
@@ -108,4 +108,134 @@ export async function readDenoConfig(path: string): Promise<DenoConfig> {
     throw new Error(`Deno config at ${path} has invalid "importMap" key`);
   }
   return res;
+}
+
+export function mapContentType(
+  specifier: URL,
+  contentType: string | null,
+): MediaType {
+  if (contentType !== null) {
+    const contentTypes = contentType.split(";");
+    const mediaType = contentTypes[0].toLowerCase();
+    switch (mediaType) {
+      case "application/typescript":
+      case "text/typescript":
+      case "video/vnd.dlna.mpeg-tts":
+      case "video/mp2t":
+      case "application/x-typescript":
+        return mapJsLikeExtension(specifier, "TypeScript");
+      case "application/javascript":
+      case "text/javascript":
+      case "application/ecmascript":
+      case "text/ecmascript":
+      case "application/x-javascript":
+      case "application/node":
+        return mapJsLikeExtension(specifier, "JavaScript");
+      case "text/jsx":
+        return "JSX";
+      case "text/tsx":
+        return "TSX";
+      case "application/json":
+      case "text/json":
+        return "Json";
+      case "application/wasm":
+        return "Wasm";
+      case "text/plain":
+      case "application/octet-stream":
+        return mediaTypeFromSpecifier(specifier);
+      default:
+        return "Unknown";
+    }
+  } else {
+    return mediaTypeFromSpecifier(specifier);
+  }
+}
+
+function mapJsLikeExtension(
+  specifier: URL,
+  defaultType: MediaType,
+): MediaType {
+  const path = specifier.pathname;
+  switch (extname(path)) {
+    case ".jsx":
+      return "JSX";
+    case ".mjs":
+      return "Mjs";
+    case ".cjs":
+      return "Cjs";
+    case ".tsx":
+      return "TSX";
+    case ".ts":
+      if (path.endsWith(".d.ts")) {
+        return "Dts";
+      } else {
+        return defaultType;
+      }
+    case ".mts": {
+      if (path.endsWith(".d.mts")) {
+        return "Dmts";
+      } else {
+        return defaultType == "JavaScript" ? "Mjs" : "Mts";
+      }
+    }
+    case ".cts": {
+      if (path.endsWith(".d.cts")) {
+        return "Dcts";
+      } else {
+        return defaultType == "JavaScript" ? "Cjs" : "Cts";
+      }
+    }
+    default:
+      return defaultType;
+  }
+}
+
+function mediaTypeFromSpecifier(specifier: URL): MediaType {
+  const path = specifier.pathname;
+  switch (extname(path)) {
+    case "":
+      if (path.endsWith("/.tsbuildinfo")) {
+        return "TsBuildInfo";
+      } else {
+        return "Unknown";
+      }
+    case ".ts":
+      if (path.endsWith(".d.ts")) {
+        return "Dts";
+      } else {
+        return "TypeScript";
+      }
+    case ".mts":
+      if (path.endsWith(".d.mts")) {
+        return "Dmts";
+      } else {
+        return "Mts";
+      }
+    case ".cts":
+      if (path.endsWith(".d.cts")) {
+        return "Dcts";
+      } else {
+        return "Cts";
+      }
+    case ".tsx":
+      return "TSX";
+    case ".js":
+      return "JavaScript";
+    case ".jsx":
+      return "JSX";
+    case ".mjs":
+      return "Mjs";
+    case ".cjs":
+      return "Cjs";
+    case ".json":
+      return "Json";
+    case ".wasm":
+      return "Wasm";
+    case ".tsbuildinfo":
+      return "TsBuildInfo";
+    case ".map":
+      return "SourceMap";
+    default:
+      return "Unknown";
+  }
 }
