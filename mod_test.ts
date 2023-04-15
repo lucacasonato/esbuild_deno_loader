@@ -420,3 +420,29 @@ test(
     assertEquals(sum, 3);
   },
 );
+
+test("uncached data url", LOADERS, async (esbuild, loader) => {
+  const configPath = join(Deno.cwd(), "testdata", "config_ref.json");
+  const rand = Math.random();
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [
+      ...denoPlugins({ configPath, loader }),
+    ],
+    bundle: true,
+    platform: "neutral",
+    entryPoints: [
+      `data:application/javascript;base64,${
+        btoa(`export const value = ${rand};`)
+      }`,
+    ],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { value } = await import(dataURL);
+  assertEquals(value, rand);
+});
