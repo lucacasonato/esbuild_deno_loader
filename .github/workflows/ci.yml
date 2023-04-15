@@ -15,7 +15,7 @@ jobs:
       matrix:
         # Test on the latest stable, and nightly
         deno: [v1.31.0, v1.31.1, v1.31.2, v1.31.3, v1.32.0, v1.32.1, v1.32.2, v1.32.3, v1.32.4]
-        os: [ubuntu-latest]
+        os: [ubuntu-latest, ubuntu-latest, ubuntu-latest, ubuntu-latest, ubuntu-latest]
 
     steps:
       - name: Setup repo
