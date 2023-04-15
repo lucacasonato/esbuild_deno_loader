@@ -14,7 +14,13 @@ jobs:
     strategy:
       matrix:
         # Test on the latest stable, and nightly
-        deno: [v1.31.3, v1.32.0, v1.32.1, v1.32.2, v1.32.3, v1.32.4]
+        deno:
+          - b9d9cd17c96e19e80932caaed017745e74b44f8b # just past 1.31.3
+          - 1300d6178e8863a220fa301e9fde8be3580d9b66 # before rusty_v8@0.65.0 update
+          - 5a1d3ea6148dc40fad3dad5660118dd1882c97eb # after rusty_v8@0.65.0 update
+          - 3c9771deb2d615c47a2570023039c6a71f1c774b # couple of days later
+          - cc46f6776c80ddb9320487e21ec479db0e59d270 # couple of days later
+          - 533e33131f1d697375f35fb6b7e1be5b9d84d4bf # just before 1.32.0
         os: [ubuntu-latest, ubuntu-latest, ubuntu-latest, ubuntu-latest, ubuntu-latest, ubuntu-latest, ubuntu-latest, ubuntu-latest, ubuntu-latest, ubuntu-latest]
 
     steps:
