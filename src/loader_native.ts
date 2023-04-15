@@ -3,6 +3,7 @@ import * as deno from "./deno.ts";
 import {
   Loader,
   LoaderResolution,
+  mapContentType,
   mediaTypeToLoader,
   transformRawIntoContent,
 } from "./shared.ts";
@@ -30,6 +31,15 @@ export class NativeLoader implements Loader {
   }
 
   async loadEsm(specifier: URL): Promise<esbuild.OnLoadResult> {
+    if (specifier.protocol === "data:") {
+      const resp = await fetch(specifier);
+      const raw = new Uint8Array(await resp.arrayBuffer());
+      const contentType = resp.headers.get("content-type");
+      const mediaType = mapContentType(specifier, contentType);
+      const contents = transformRawIntoContent(raw, mediaType);
+      const loader = mediaTypeToLoader(mediaType);
+      return { contents, loader };
+    }
     const entry = await this.#infoCache.get(specifier.href);
     if ("error" in entry) throw new Error(entry.error);
 

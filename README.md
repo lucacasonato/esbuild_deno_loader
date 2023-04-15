@@ -7,16 +7,16 @@ Deno module resolution for `esbuild`.
 This example bundles an entrypoint into a single ESM output.
 
 ```js
-import * as esbuild from "https://deno.land/x/esbuild@v0.17.11/mod.js";
+import * as esbuild from "https://deno.land/x/esbuild@v0.17.16/mod.js";
 // Import the WASM build on platforms where running subprocesses is not
 // permitted, such as Deno Deploy, or when running without `--allow-run`.
-// import * as esbuild from "https://deno.land/x/esbuild@v0.17.11/wasm.js";
+// import * as esbuild from "https://deno.land/x/esbuild@v0.17.16/wasm.js";
 
 import { denoPlugins } from "https://deno.land/x/esbuild_deno_loader@0.6.0/mod.ts";
 
 const result = await esbuild.build({
   plugins: [...denoPlugins()],
-  entryPoints: ["https://deno.land/std@0.179.0/bytes/mod.ts"],
+  entryPoints: ["https://deno.land/std@0.183.0/hash/sha1.ts"],
   outfile: "./dist/bytes.esm.js",
   bundle: true,
   format: "esm",
