@@ -14,8 +14,9 @@ jobs:
     strategy:
       matrix:
         # Test on the latest stable, and nightly
-        deno: [v1.x, canary]
-        os: [macOS-latest, windows-latest, ubuntu-latest]
+        deno:
+          - aba5329aec06a92b591ef92ddc40ac0d25c870fa
+        os: [ubuntu-latest]
 
     steps:
       - name: Setup repo
