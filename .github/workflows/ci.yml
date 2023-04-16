@@ -15,7 +15,7 @@ jobs:
       matrix:
         # Test on the latest stable, and nightly
         deno:
-          - aa7f02946de5c92339eea6fe8b6849537077b8d6
+          - 1300d6178e8863a220fa301e9fde8be3580d9b66
         os: [ubuntu-latest]
 
     steps:
