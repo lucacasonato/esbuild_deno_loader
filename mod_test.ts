@@ -8,6 +8,9 @@ import { denoLoaderPlugin } from "./src/plugin_deno_loader.ts";
 import { esbuildNative, esbuildWasm, join } from "./test_deps.ts";
 import { assert, assertEquals } from "./test_deps.ts";
 
+await esbuildNative.initialize({});
+await esbuildWasm.initialize({});
+
 const LOADERS = ["native", "portable"] as const;
 const PLATFORMS = { "native": esbuildNative, "wasm": esbuildWasm };
 
@@ -31,17 +34,7 @@ function test(
       Deno.test({
         name: `[${loader}, ${platform}] ${name}`,
         ignore: platform === "wasm" && Deno.build.os === "windows",
-        fn: async () => {
-          try {
-            await esbuild.initialize({});
-            await fn(esbuild, loader);
-          } finally {
-            esbuild.stop();
-          }
-          // Let esbuild cleanup finish closing resources and cancelling async
-          // tasks. This should take just 1 event loop tick.
-          await new Promise((r) => setTimeout(r, 5));
-        },
+        fn: () => fn(esbuild, loader),
       });
     }
   }
@@ -51,7 +44,7 @@ test("remote ts", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
     ...DEFAULT_OPTS,
     plugins: [...denoPlugins({ loader })],
-    entryPoints: ["https://deno.land/std@0.183.0/collections/without_all.ts"],
+    entryPoints: ["https://deno.land/std@0.185.0/collections/without_all.ts"],
   });
   assertEquals(res.warnings, []);
   assertEquals(res.errors, []);
@@ -249,7 +242,7 @@ test("bundle remote imports", LOADERS, async (esbuild, loader) => {
     plugins: [...denoPlugins({ loader })],
     bundle: true,
     platform: "neutral",
-    entryPoints: ["https://deno.land/std@0.183.0/uuid/mod.ts"],
+    entryPoints: ["https://deno.land/std@0.185.0/uuid/mod.ts"],
   });
   assertEquals(res.warnings, []);
   assertEquals(res.errors, []);
