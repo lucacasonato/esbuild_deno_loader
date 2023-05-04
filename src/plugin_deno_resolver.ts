@@ -1,126 +1,462 @@
+import { type esbuild } from "./deps.ts";
 import {
-  esbuild,
-  ImportMap,
-  resolveImportMap,
-  resolveModuleSpecifier,
-  Scopes,
-  SpecifierMap,
-  toFileUrl,
-} from "../deps.ts";
-import { readDenoConfig, urlToEsbuildResolution } from "./shared.ts";
+  denoPlugins,
+  denoResolverPlugin,
+  esbuildResolutionToURL,
+} from "./mod.ts";
+import { denoLoaderPlugin } from "./src/plugin_deno_loader.ts";
+import { esbuildNative, esbuildWasm, join } from "./test_deps.ts";
+import { assert, assertEquals } from "./test_deps.ts";
 
-export type { ImportMap, Scopes, SpecifierMap };
+await esbuildNative.initialize({});
+await esbuildWasm.initialize({});
 
-export interface DenoResolverPluginOptions {
-  /**
-   * Specify the path to a deno.json config file to use. This is equivalent to
-   * the `--config` flag to the Deno executable. This path must be absolute.
-   */
-  configPath?: string;
-  /**
-   * Specify a URL to an import map file to use when resolving import
-   * specifiers. This is equivalent to the `--import-map` flag to the Deno
-   * executable. This URL may be remote or a local file URL.
-   *
-   * If this option is not specified, the deno.json config file is consulted to
-   * determine what import map to use, if any.
-   */
-  importMapURL?: string;
+const LOADERS = ["native", "portable"] as const;
+const PLATFORMS = { "native": esbuildNative, "wasm": esbuildWasm };
+
+const DEFAULT_OPTS = {
+  write: false,
+  format: "esm",
+  // TODO(lucacasonato): remove when https://github.com/evanw/esbuild/pull/2968 is fixed
+  absWorkingDir: Deno.cwd(),
+} as const;
+
+function test(
+  name: string,
+  loaders: readonly ("native" | "portable")[],
+  fn: (
+    esbuild: typeof esbuildNative,
+    loader: "native" | "portable",
+  ) => Promise<void>,
+) {
+  for (const [platform, esbuild] of Object.entries(PLATFORMS)) {
+    for (const loader of loaders) {
+      Deno.test({
+        name: `[${loader}, ${platform}] ${name}`,
+        ignore: platform === "wasm" && Deno.build.os === "windows",
+        fn: () => fn(esbuild, loader),
+      });
+    }
+  }
 }
 
-/**
- * The Deno resolver plugin performs relative->absolute specifier resolution
- * and import map resolution.
- *
- * If using the {@link denoLoaderPlugin}, this plugin must be used before the
- * loader plugin.
- */
-export function denoResolverPlugin(
-  options: DenoResolverPluginOptions = {},
-): esbuild.Plugin {
-  return {
-    name: "deno-resolver",
-    setup(build) {
-      let importMap: ImportMap | null = null;
+test("remote ts", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: ["https://deno.land/std@0.185.0/collections/without_all.ts"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { withoutAll } = await import(dataURL);
+  assertEquals(withoutAll([1, 2, 3], [2, 3, 4]), [1]);
+});
 
-      build.onStart(async function onStart() {
-        let importMapURL: string | undefined;
+test("local ts", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: ["./testdata/mod.ts"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd2");
+});
 
-        // If no import map URL is specified, and a config is specified, we try
-        // to get an import map from the config.
-        if (
-          options.importMapURL === undefined && options.configPath !== undefined
-        ) {
-          const config = await readDenoConfig(options.configPath);
-          // If `imports` or `scopes` are specified, use the config file as the
-          // import map directly.
-          if (config.imports !== undefined || config.scopes !== undefined) {
-            importMap = resolveImportMap(
-              // deno-lint-ignore no-explicit-any
-              config as any,
-              toFileUrl(options.configPath),
-            );
-          } else if (config.importMap !== undefined) {
-            // Otherwise, use the import map URL specified in the config file
-            importMapURL =
-              new URL(config.importMap, toFileUrl(options.configPath)).href;
-          }
-        } else if (options.importMapURL !== undefined) {
-          importMapURL = options.importMapURL;
-        }
+test("remote mts", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: [
+      "https://gist.githubusercontent.com/lucacasonato/4ad57db57ee8d44e4ec08d6a912e93a7/raw/f33e698b4445a7243d72dbfe95afe2d004c7ffc6/mod.mts",
+    ],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd2");
+});
 
-        // If we have an import map URL, fetch it and parse it.
-        if (importMapURL) {
-          const resp = await fetch(importMapURL);
-          const data = await resp.json();
-          importMap = resolveImportMap(data, new URL(resp.url));
-        }
-      });
+test("local mts", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: ["./testdata/mod.mts"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd2");
+});
 
-      build.onResolve({ filter: /.*/ }, async function onResolve(args) {
-        // The first pass resolver performs synchronous resolution. This
-        // includes relative to absolute specifier resolution and import map
-        // resolution.
+test("remote js", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: ["https://crux.land/266TSp"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd");
+});
 
-        // We have to first determine the referrer URL to use when resolving
-        // the specifier. This is either the importer URL, or the resolveDir
-        // URL if the importer is not specified (ie if the specifier is at the
-        // root).
-        let referrer: URL;
-        if (args.importer !== "") {
-          if (args.namespace === "") {
-            throw new Error("[assert] namespace is empty");
-          }
-          referrer = new URL(`${args.namespace}:${args.importer}`);
-        } else if (args.resolveDir !== "") {
-          referrer = new URL(`${toFileUrl(args.resolveDir).href}/`);
-        } else {
-          return undefined;
-        }
+test("local js", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: ["./testdata/mod.js"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd");
+});
 
-        // We can then resolve the specifier relative to the referrer URL. If
-        // an import map is specified, we use that to resolve the specifier.
-        let resolved: URL;
-        if (importMap !== null) {
-          const res = resolveModuleSpecifier(
-            args.path,
-            importMap,
-            new URL(referrer) || undefined,
-          );
-          resolved = new URL(res);
-        } else {
-          resolved = new URL(args.path, referrer);
-        }
+test("remote mjs", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: [
+      "https://gist.githubusercontent.com/lucacasonato/4ad57db57ee8d44e4ec08d6a912e93a7/raw/f33e698b4445a7243d72dbfe95afe2d004c7ffc6/mod.mjs",
+    ],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd");
+});
 
-        // Now pass the resolved specifier back into the resolver, for a second
-        // pass. Now plugins can perform any resolution they want on the fully
-        // resolved specifier.
-        const { path, namespace } = urlToEsbuildResolution(resolved);
-        return await build.resolve(path, {
-          namespace,
-          kind: args.kind,
-        });
-      });
+test("local mjs", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: ["./testdata/mod.mjs"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd");
+});
+
+test("remote jsx", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: ["https://crux.land/GeaWJ"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const m = await import(dataURL);
+  assertEquals(m.default, "foo");
+});
+
+test("local jsx", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: ["./testdata/mod.jsx"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const m = await import(dataURL);
+  assertEquals(m.default, "foo");
+});
+
+test("remote tsx", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: ["https://crux.land/2Qjyo7"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const m = await import(dataURL);
+  assertEquals(m.default, "foo");
+});
+
+test("local tsx", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: ["./testdata/mod.tsx"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const m = await import(dataURL);
+  assertEquals(m.default, "foo");
+});
+
+test("bundle remote imports", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    bundle: true,
+    platform: "neutral",
+    entryPoints: ["https://deno.land/std@0.185.0/uuid/mod.ts"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { v1 } = await import(dataURL);
+  assert(v1.validate(v1.generate()));
+});
+
+test("local json", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    entryPoints: ["./testdata/data.json"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { default: data } = await import(dataURL);
+  assertEquals(data, {
+    "hello": "world",
+    ["__proto__"]: {
+      "sky": "universe",
     },
-  };
-}
+  });
+});
+
+test("remote http redirects are de-duped", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ loader })],
+    bundle: true,
+    entryPoints: ["./testdata/remote_redirects.js"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const matches = [...output.text.matchAll(/0\.178\.0/g)];
+  assertEquals(matches.length, 2); // once in the comment, once in the code
+});
+
+const importMapURL =
+  new URL("./testdata/import_map.json", import.meta.url).href;
+
+test("bundle explicit import map", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [
+      ...denoPlugins({ importMapURL, loader }),
+    ],
+    bundle: true,
+    platform: "neutral",
+    entryPoints: ["./testdata/mapped.js"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd2");
+});
+
+test("bundle config inline import map", LOADERS, async (esbuild, loader) => {
+  const configPath = join(Deno.cwd(), "testdata", "config_inline.jsonc");
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [
+      ...denoPlugins({ configPath, loader }),
+    ],
+    bundle: true,
+    platform: "neutral",
+    entryPoints: ["./testdata/mapped.js"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd2");
+});
+
+test("bundle config ref import map", LOADERS, async (esbuild, loader) => {
+  const configPath = join(Deno.cwd(), "testdata", "config_ref.json");
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [
+      ...denoPlugins({ configPath, loader }),
+    ],
+    bundle: true,
+    platform: "neutral",
+    entryPoints: ["./testdata/mapped.js"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd2");
+});
+
+const COMPUTED_PLUGIN: esbuild.Plugin = {
+  name: "computed",
+  setup(build) {
+    build.onResolve({ filter: /.*/, namespace: "computed" }, (args) => {
+      return { path: args.path, namespace: "computed" };
+    });
+    build.onLoad({ filter: /.*/, namespace: "computed" }, (args) => {
+      const url = esbuildResolutionToURL(args);
+      return { contents: `export default ${url.pathname};`, loader: "js" };
+    });
+  },
+};
+
+test("custom plugin for scheme", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [
+      denoResolverPlugin(),
+      COMPUTED_PLUGIN,
+      denoLoaderPlugin({ loader }),
+    ],
+    entryPoints: ["computed:1+2"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { default: sum } = await import(dataURL);
+  assertEquals(sum, 3);
+});
+
+test(
+  "custom plugin for scheme with import map",
+  LOADERS,
+  async (esbuild, loader) => {
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [
+        denoResolverPlugin({ importMapURL }),
+        COMPUTED_PLUGIN,
+        denoLoaderPlugin({ importMapURL, loader }),
+      ],
+      bundle: true,
+      entryPoints: ["./testdata/mapped-computed.js"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: sum } = await import(dataURL);
+    assertEquals(sum, 3);
+  },
+);
+
+test("uncached data url", LOADERS, async (esbuild, loader) => {
+  const configPath = join(Deno.cwd(), "testdata", "config_ref.json");
+  const rand = Math.random();
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [
+      ...denoPlugins({ configPath, loader }),
+    ],
+    bundle: true,
+    platform: "neutral",
+    entryPoints: [
+      `data:application/javascript;base64,${
+        btoa(`export const value = ${rand};`)
+      }`,
+    ],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { value } = await import(dataURL);
+  assertEquals(value, rand);
+});
+
+test("stdin contents", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [
+      ...denoPlugins({ importMapURL, loader }),
+    ],
+    bundle: true,
+    platform: "neutral",
+    splitting: false,
+    stdin: { contents: await Deno.readFile("./testdata/mapped.js") },
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd2");
+});

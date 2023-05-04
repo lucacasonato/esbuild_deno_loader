@@ -12,7 +12,7 @@ await esbuildNative.initialize({});
 await esbuildWasm.initialize({});
 
 const LOADERS = ["native", "portable"] as const;
-const PLATFORMS = { "native": esbuildNative, "wasm": esbuildWasm };
+const PLATFORMS = { native: esbuildNative, wasm: esbuildWasm };
 
 const DEFAULT_OPTS = {
   write: false,
@@ -268,9 +268,9 @@ test("local json", LOADERS, async (esbuild, loader) => {
   const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
   const { default: data } = await import(dataURL);
   assertEquals(data, {
-    "hello": "world",
+    hello: "world",
     ["__proto__"]: {
-      "sky": "universe",
+      sky: "universe",
     },
   });
 });
@@ -291,15 +291,13 @@ test("remote http redirects are de-duped", LOADERS, async (esbuild, loader) => {
   assertEquals(matches.length, 2); // once in the comment, once in the code
 });
 
-const importMapURL =
-  new URL("./testdata/import_map.json", import.meta.url).href;
+const importMapURL = new URL("./testdata/import_map.json", import.meta.url)
+  .href;
 
 test("bundle explicit import map", LOADERS, async (esbuild, loader) => {
   const res = await esbuild.build({
     ...DEFAULT_OPTS,
-    plugins: [
-      ...denoPlugins({ importMapURL, loader }),
-    ],
+    plugins: [...denoPlugins({ importMapURL, loader })],
     bundle: true,
     platform: "neutral",
     entryPoints: ["./testdata/mapped.js"],
@@ -318,9 +316,7 @@ test("bundle config inline import map", LOADERS, async (esbuild, loader) => {
   const configPath = join(Deno.cwd(), "testdata", "config_inline.jsonc");
   const res = await esbuild.build({
     ...DEFAULT_OPTS,
-    plugins: [
-      ...denoPlugins({ configPath, loader }),
-    ],
+    plugins: [...denoPlugins({ configPath, loader })],
     bundle: true,
     platform: "neutral",
     entryPoints: ["./testdata/mapped.js"],
@@ -339,9 +335,7 @@ test("bundle config ref import map", LOADERS, async (esbuild, loader) => {
   const configPath = join(Deno.cwd(), "testdata", "config_ref.json");
   const res = await esbuild.build({
     ...DEFAULT_OPTS,
-    plugins: [
-      ...denoPlugins({ configPath, loader }),
-    ],
+    plugins: [...denoPlugins({ configPath, loader })],
     bundle: true,
     platform: "neutral",
     entryPoints: ["./testdata/mapped.js"],
@@ -419,14 +413,14 @@ test("uncached data url", LOADERS, async (esbuild, loader) => {
   const rand = Math.random();
   const res = await esbuild.build({
     ...DEFAULT_OPTS,
-    plugins: [
-      ...denoPlugins({ configPath, loader }),
-    ],
+    plugins: [...denoPlugins({ configPath, loader })],
     bundle: true,
     platform: "neutral",
     entryPoints: [
       `data:application/javascript;base64,${
-        btoa(`export const value = ${rand};`)
+        btoa(
+          `export const value = ${rand};`,
+        )
       }`,
     ],
   });
@@ -438,4 +432,23 @@ test("uncached data url", LOADERS, async (esbuild, loader) => {
   const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
   const { value } = await import(dataURL);
   assertEquals(value, rand);
+});
+
+test("stdin contents", LOADERS, async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [...denoPlugins({ importMapURL, loader })],
+    bundle: true,
+    platform: "neutral",
+    splitting: false,
+    stdin: { contents: await Deno.readFile("./testdata/mapped.js") },
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { bool } = await import(dataURL);
+  assertEquals(bool, "asd2");
 });
