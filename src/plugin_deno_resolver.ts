@@ -36,7 +36,7 @@ export interface DenoResolverPluginOptions {
  * loader plugin.
  */
 export function denoResolverPlugin(
-  options: DenoResolverPluginOptions = {}
+  options: DenoResolverPluginOptions = {},
 ): esbuild.Plugin {
   return {
     name: "deno-resolver",
@@ -59,13 +59,13 @@ export function denoResolverPlugin(
             importMap = resolveImportMap(
               // deno-lint-ignore no-explicit-any
               config as any,
-              toFileUrl(options.configPath)
+              toFileUrl(options.configPath),
             );
           } else if (config.importMap !== undefined) {
             // Otherwise, use the import map URL specified in the config file
             importMapURL = new URL(
               config.importMap,
-              toFileUrl(options.configPath)
+              toFileUrl(options.configPath),
             ).href;
           }
         } else if (options.importMapURL !== undefined) {
@@ -81,7 +81,6 @@ export function denoResolverPlugin(
       });
 
       build.onResolve({ filter: /.*/ }, async function onResolve(args) {
-        const isStdin = args.importer.includes("<stdin>");
         // The first pass resolver performs synchronous resolution. This
         // includes relative to absolute specifier resolution and import map
         // resolution.
@@ -90,13 +89,15 @@ export function denoResolverPlugin(
         // the specifier. This is either the importer URL, or the resolveDir
         // URL if the importer is not specified (ie if the specifier is at the
         // root).
+        const isStdin = args.importer.includes("<stdin>");
+        const cwdUrl = toFileUrl(Deno.cwd());
         let referrer: URL;
         if (args.importer !== "") {
           if (args.namespace === "" && !isStdin) {
             throw new Error("[assert] namespace is empty");
           }
           referrer = new URL(
-            isStdin ? import.meta.url : `${args.namespace}:${args.importer}`
+            isStdin ? cwdUrl : `${args.namespace}:${args.importer}`,
           );
         } else if (args.resolveDir !== "") {
           referrer = new URL(`${toFileUrl(args.resolveDir).href}/`);
@@ -111,11 +112,11 @@ export function denoResolverPlugin(
           const res = resolveModuleSpecifier(
             args.path,
             importMap,
-            new URL(referrer) || undefined
+            new URL(referrer) || undefined,
           );
           resolved = new URL(res);
         } else {
-          resolved = new URL(args.path, isStdin ? import.meta.url : referrer);
+          resolved = new URL(args.path, isStdin ? cwdUrl : referrer);
         }
 
         // Now pass the resolved specifier back into the resolver, for a second
