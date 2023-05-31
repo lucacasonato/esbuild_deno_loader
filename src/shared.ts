@@ -77,7 +77,7 @@ export function esbuildResolutionToURL(specifier: EsbuildResolution): URL {
 interface DenoConfig {
   imports?: unknown;
   scopes?: unknown;
-  lock?: string;
+  lock?: boolean | string;
   importMap?: string;
 }
 
@@ -101,7 +101,10 @@ export async function readDenoConfig(path: string): Promise<DenoConfig> {
   ) {
     throw new Error(`Deno config at ${path} has invalid "scopes" key`);
   }
-  if ("lock" in res && typeof res.lock !== "string") {
+  if (
+    "lock" in res &&
+    typeof res.lock !== "boolean" && typeof res.lock !== "string"
+  ) {
     throw new Error(`Deno config at ${path} has invalid "lock" key`);
   }
   if ("importMap" in res && typeof res.importMap !== "string") {
