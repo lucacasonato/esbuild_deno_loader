@@ -21,6 +21,7 @@ interface InfoOutput {
   roots: string[];
   modules: ModuleEntry[];
   redirects: Record<string, string>;
+  npmPackages: Record<string, NpmPackage>;
 }
 
 export type ModuleEntry =
@@ -64,11 +65,18 @@ export interface ModuleEntryNode extends ModuleEntryBase {
   moduleName: string;
 }
 
+export interface NpmPackage {
+  name: string;
+  version: string;
+  dependencies: string[];
+}
+
 export interface InfoOptions {
   cwd?: string;
   config?: string;
   importMap?: string;
   lock?: string;
+  nodeModulesDir?: boolean;
 }
 
 let tmpDir: string | undefined;
@@ -98,6 +106,9 @@ async function info(
   // } else if (!options.cwd) {
   //   opts.args.push("--no-lock");
   // }
+  if (options.nodeModulesDir) {
+    opts.args.push("--node-modules-dir");
+  }
   if (options.cwd) {
     opts.cwd = options.cwd;
   } else {
@@ -123,6 +134,7 @@ export class InfoCache {
 
   #modules: Map<string, ModuleEntry> = new Map();
   #redirects: Map<string, string> = new Map();
+  #npmPackages: Map<string, NpmPackage> = new Map();
 
   constructor(options: InfoOptions = {}) {
     this.#options = options;
@@ -142,6 +154,10 @@ export class InfoCache {
     return entry;
   }
 
+  getNpmPackage(id: string): NpmPackage | undefined {
+    return this.#npmPackages.get(id);
+  }
+
   #resolve(specifier: string): string {
     return this.#redirects.get(specifier) ?? specifier;
   }
@@ -152,19 +168,23 @@ export class InfoCache {
   }
 
   async #load(specifier: string): Promise<void> {
-    const { modules, redirects } = await info(specifier, {
-      importMap: this.#options.importMap,
-    });
+    const { modules, redirects, npmPackages } = await info(
+      specifier,
+      this.#options,
+    );
     for (const module of modules) {
       this.#modules.set(module.specifier, module);
     }
     for (const [from, to] of Object.entries(redirects)) {
       this.#redirects.set(from, to);
     }
+    for (const [id, npmPackage] of Object.entries(npmPackages)) {
+      this.#npmPackages.set(id, npmPackage);
+    }
 
     specifier = this.#resolve(specifier);
     const entry = this.#modules.get(specifier);
-    if (entry === undefined) {
+    if (entry === undefined && specifier.startsWith("npm:")) {
       // we hit https://github.com/denoland/deno/issues/18043, so we have to
       // perform another load to get the actual data of the redirected specifier
       await this.#load(specifier);

@@ -1,11 +1,14 @@
-import { esbuild, fromFileUrl } from "../deps.ts";
+import { base32Encode, DenoDir, esbuild, fromFileUrl, join } from "../deps.ts";
 import * as deno from "./deno.ts";
 import {
   Loader,
   LoaderResolution,
   mapContentType,
   mediaTypeToLoader,
+  parseNpmSpecifier,
 } from "./shared.ts";
+
+let DENO_DIR: DenoDir | undefined;
 
 export interface NativeLoaderOptions {
   infoOptions?: deno.InfoOptions;
@@ -22,8 +25,20 @@ export class NativeLoader implements Loader {
     const entry = await this.#infoCache.get(specifier.href);
     if ("error" in entry) throw new Error(entry.error);
 
-    if (entry.kind === "npm" || entry.kind === "node") {
-      throw new Error("Unsupported module kind: " + entry.kind);
+    if (entry.kind === "npm") {
+      // TODO(lucacasonato): remove parsing once https://github.com/denoland/deno/issues/18043 is resolved
+      const parsed = parseNpmSpecifier(new URL(entry.specifier));
+      return {
+        kind: "npm",
+        packageId: entry.npmPackage,
+        packageName: parsed.name,
+        path: parsed.path ?? "",
+      };
+    } else if (entry.kind === "node") {
+      return {
+        kind: "node",
+        path: entry.specifier,
+      };
     }
 
     return { kind: "esm", specifier: new URL(entry.specifier) };
@@ -53,5 +68,37 @@ export class NativeLoader implements Loader {
       res.watchFiles = [fromFileUrl(specifier)];
     }
     return res;
+  }
+
+  nodeModulesDirForPackage(npmPackageId: string): string {
+    const npmPackage = this.#infoCache.getNpmPackage(npmPackageId);
+    if (!npmPackage) throw new Error("NPM package not found.");
+    if (!DENO_DIR) DENO_DIR = new DenoDir(undefined, true);
+    let name = npmPackage.name;
+    if (name.toLowerCase() !== name) {
+      name = `_${base32Encode(new TextEncoder().encode(name))}`;
+    }
+    return join(
+      DENO_DIR.root,
+      "npm",
+      "registry.npmjs.org",
+      name,
+      npmPackage.version,
+    );
+  }
+
+  packageIdFromNameInPackage(
+    name: string,
+    parentPackageId: string,
+  ): string {
+    const parentPackage = this.#infoCache.getNpmPackage(parentPackageId);
+    if (!parentPackage) throw new Error("NPM package not found.");
+    if (parentPackage.name === name) return parentPackageId;
+    for (const dep of parentPackage.dependencies) {
+      const depPackage = this.#infoCache.getNpmPackage(dep);
+      if (!depPackage) throw new Error("NPM package not found.");
+      if (depPackage.name === name) return dep;
+    }
+    throw new Error("NPM package not found.");
   }
 }

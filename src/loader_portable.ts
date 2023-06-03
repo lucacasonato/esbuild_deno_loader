@@ -5,6 +5,7 @@ import {
   LoaderResolution,
   mapContentType,
   mediaTypeToLoader,
+  parseNpmSpecifier,
 } from "./shared.ts";
 
 interface Module {
@@ -29,6 +30,18 @@ export class PortableLoader implements Loader {
       case "data:": {
         const module = await this.#loadRemote(specifier.href);
         return { kind: "esm", specifier: new URL(module.specifier) };
+      }
+      case "npm:": {
+        const npmSpecifier = parseNpmSpecifier(specifier);
+        return {
+          kind: "npm",
+          packageId: "",
+          packageName: npmSpecifier.name,
+          path: npmSpecifier.path ?? "",
+        };
+      }
+      case "node:": {
+        return { kind: "node", path: specifier.pathname };
       }
       default:
         throw new Error(`Unsupported scheme: '${specifier.protocol}'`);
