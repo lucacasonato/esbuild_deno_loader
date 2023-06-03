@@ -21,12 +21,13 @@ import * as esbuild from "https://deno.land/x/esbuild@v0.17.19/mod.js";
 import { denoPlugins } from "https://deno.land/x/esbuild_deno_loader@0.8.0/mod.ts";
 
 const result = await esbuild.build({
-  plugins: [..denoPlugins()],
-  entryPoints: ["https://deno.land/std@0.185.0/hash/sha1.ts"],
-  outfile: "./dist/sha1.esm.js",
+  plugins: [...denoPlugins()],
+  entryPoints: ["https://deno.land/std@0.185.0/bytes/mod.ts"],
+  outfile: "./dist/bytes.esm.js",
   bundle: true,
   format: "esm",
 });
+
 console.log(result.outputFiles);
 
 esbuild.stop();
