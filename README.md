@@ -2,6 +2,12 @@
 
 Deno module resolution for `esbuild`.
 
+- Support for `file:`, `https:`, and `data:` specifiers
+- Support for `npm:` specifiers
+- Support for import maps (including embedded into `deno.json`)
+- Native loader using Deno's global cache directory
+- Portable loader that words in environments with limited permissions
+
 ## Example
 
 This example bundles an entrypoint into a single ESM output.
@@ -25,6 +31,15 @@ console.log(result.outputFiles);
 
 esbuild.stop();
 ```
+
+## Limitations
+
+- The `"portable"` loader does not use the Deno module cache, so all remote
+  specifiers are downloaded on every run.
+- When using the `"portable"` loader, all `npm:` dependencies must be
+  pre-downloaded into a local `node_modules/` directory.
+- `npm:` specifiers are not supported on WASM esbuild builds due to FS access
+  limitations (see https://github.com/evanw/esbuild/pull/2968).
 
 ## Documentation
 
