@@ -15,7 +15,7 @@ import * as esbuild from "https://deno.land/x/esbuild@v0.17.18/mod.js";
 import { denoPlugins } from "https://deno.land/x/esbuild_deno_loader@0.7.2/mod.ts";
 
 const result = await esbuild.build({
-  plugins: [..denoPlugins()],
+  plugins: [...denoPlugins()],
   entryPoints: ["https://deno.land/std@0.185.0/hash/sha1.ts"],
   outfile: "./dist/sha1.esm.js",
   bundle: true,
