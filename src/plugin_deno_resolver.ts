@@ -55,9 +55,12 @@ export function denoResolverPlugin(
           // If `imports` or `scopes` are specified, use the config file as the
           // import map directly.
           if (config.imports !== undefined || config.scopes !== undefined) {
+            const configImportMap = {
+              imports: config.imports,
+              scopes: config.scopes,
+            } as ImportMap;
             importMap = resolveImportMap(
-              // deno-lint-ignore no-explicit-any
-              config as any,
+              configImportMap,
               toFileUrl(options.configPath),
             );
           } else if (config.importMap !== undefined) {
