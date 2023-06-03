@@ -53,9 +53,7 @@ export interface DenoPluginsOptions {
   importMapURL?: string;
 }
 
-export function denoPlugins(
-  opts: DenoLoaderPluginOptions = {},
-): esbuild.Plugin[] {
+export function denoPlugins(opts: DenoPluginsOptions = {}): esbuild.Plugin[] {
   return [
     denoResolverPlugin(opts),
     denoLoaderPlugin(opts),
