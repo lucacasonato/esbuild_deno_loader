@@ -5,7 +5,6 @@ import {
   LoaderResolution,
   mapContentType,
   mediaTypeToLoader,
-  transformRawIntoContent,
 } from "./shared.ts";
 
 interface Module {
@@ -54,9 +53,8 @@ export class PortableLoader implements Loader {
     }
 
     const loader = mediaTypeToLoader(module.mediaType);
-    const contents = transformRawIntoContent(module.data, module.mediaType);
 
-    const res: esbuild.OnLoadResult = { contents, loader };
+    const res: esbuild.OnLoadResult = { contents: module.data, loader };
     if (url.protocol === "file:") {
       res.watchFiles = [fromFileUrl(module.specifier)];
     }

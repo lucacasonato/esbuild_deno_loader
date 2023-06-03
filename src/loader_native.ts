@@ -5,7 +5,6 @@ import {
   LoaderResolution,
   mapContentType,
   mediaTypeToLoader,
-  transformRawIntoContent,
 } from "./shared.ts";
 
 export interface NativeLoaderOptions {
@@ -33,10 +32,9 @@ export class NativeLoader implements Loader {
   async loadEsm(specifier: URL): Promise<esbuild.OnLoadResult> {
     if (specifier.protocol === "data:") {
       const resp = await fetch(specifier);
-      const raw = new Uint8Array(await resp.arrayBuffer());
+      const contents = new Uint8Array(await resp.arrayBuffer());
       const contentType = resp.headers.get("content-type");
       const mediaType = mapContentType(specifier, contentType);
-      const contents = transformRawIntoContent(raw, mediaType);
       const loader = mediaTypeToLoader(mediaType);
       return { contents, loader };
     }
@@ -49,9 +47,7 @@ export class NativeLoader implements Loader {
     if (!entry.local) throw new Error("Module not downloaded yet.");
     const loader = mediaTypeToLoader(entry.mediaType);
 
-    const raw = await Deno.readFile(entry.local);
-    const contents = transformRawIntoContent(raw, entry.mediaType);
-
+    const contents = await Deno.readFile(entry.local);
     const res: esbuild.OnLoadResult = { contents, loader };
     if (specifier.protocol === "file:") {
       res.watchFiles = [fromFileUrl(specifier)];
