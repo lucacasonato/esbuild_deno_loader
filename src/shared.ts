@@ -6,7 +6,7 @@ export interface Loader {
   loadEsm(specifier: URL): Promise<esbuild.OnLoadResult>;
 
   packageIdFromNameInPackage?(name: string, parentPackageId: string): string;
-  nodeModulesDirForPackage?(npmPackageId?: string): string;
+  nodeModulesDirForPackage?(npmPackageId?: string): Promise<string>;
 }
 
 export type LoaderResolution =

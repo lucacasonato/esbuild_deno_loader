@@ -16,6 +16,7 @@ export interface NativeLoaderOptions {
 
 export class NativeLoader implements Loader {
   #infoCache: deno.InfoCache;
+  #linkDirCache: Map<string, string> = new Map(); // mapping from package id -> link dir
 
   constructor(options: NativeLoaderOptions) {
     this.#infoCache = new deno.InfoCache(options.infoOptions);
@@ -70,21 +71,71 @@ export class NativeLoader implements Loader {
     return res;
   }
 
-  nodeModulesDirForPackage(npmPackageId: string): string {
+  async nodeModulesDirForPackage(npmPackageId: string): Promise<string> {
     const npmPackage = this.#infoCache.getNpmPackage(npmPackageId);
     if (!npmPackage) throw new Error("NPM package not found.");
-    if (!DENO_DIR) DENO_DIR = new DenoDir(undefined, true);
+
+    let linkDir = this.#linkDirCache.get(npmPackageId);
+    if (!linkDir) {
+      linkDir = await this.#nodeModulesDirForPackageInner(
+        npmPackageId,
+        npmPackage,
+      );
+      this.#linkDirCache.set(npmPackageId, linkDir);
+    }
+    return linkDir;
+  }
+
+  async #nodeModulesDirForPackageInner(
+    npmPackageId: string,
+    npmPackage: deno.NpmPackage,
+  ): Promise<string> {
     let name = npmPackage.name;
     if (name.toLowerCase() !== name) {
       name = `_${base32Encode(new TextEncoder().encode(name))}`;
     }
-    return join(
+    if (!DENO_DIR) DENO_DIR = new DenoDir(undefined, true);
+    const packageDir = join(
       DENO_DIR.root,
       "npm",
       "registry.npmjs.org",
       name,
       npmPackage.version,
     );
+    const linkDirParent = join(
+      DENO_DIR.root,
+      "deno_esbuild",
+      npmPackageId,
+      "node_modules",
+    );
+    const linkDir = join(linkDirParent, name);
+
+    // check if the package is already linked, if so, return the link and skip
+    // a bunch of work
+    try {
+      await Deno.stat(linkDir);
+      this.#linkDirCache.set(npmPackageId, linkDir);
+      return linkDir;
+    } catch {
+      // directory does not yet exist
+    }
+
+    // create a temporary directory, recursively hardlink the package contents
+    // into it, and then rename it to the final location
+    const tmpDir = await Deno.makeTempDir();
+    await linkRecursive(packageDir, tmpDir);
+    try {
+      await Deno.mkdir(linkDirParent, { recursive: true });
+      await Deno.rename(tmpDir, linkDir);
+    } catch (err) {
+      if (err instanceof Deno.errors.AlreadyExists) {
+        // ignore
+      } else {
+        throw err;
+      }
+    }
+
+    return linkDir;
   }
 
   packageIdFromNameInPackage(
@@ -100,5 +151,17 @@ export class NativeLoader implements Loader {
       if (depPackage.name === name) return dep;
     }
     throw new Error("NPM package not found.");
+  }
+}
+
+async function linkRecursive(from: string, to: string) {
+  const fromStat = await Deno.stat(from);
+  if (fromStat.isDirectory) {
+    await Deno.mkdir(to, { recursive: true });
+    for await (const entry of Deno.readDir(from)) {
+      await linkRecursive(join(from, entry.name), join(to, entry.name));
+    }
+  } else {
+    await Deno.link(from, to);
   }
 }

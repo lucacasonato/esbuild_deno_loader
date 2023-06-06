@@ -324,6 +324,29 @@ test(
 );
 
 test(
+  "npm specifiers global resolver - is-number",
+  ["native"],
+  async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader })],
+      bundle: true,
+      entryPoints: ["npm:is-number"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(!output.text.includes(`npm:`));
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: isNumber } = await import(dataURL);
+    assertEquals(isNumber(1), true);
+  },
+);
+
+test(
   "npm specifiers local resolver - preact",
   LOADERS,
   async (esbuild, loader) => {
