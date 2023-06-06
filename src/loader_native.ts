@@ -102,13 +102,13 @@ export class NativeLoader implements Loader {
       name,
       npmPackage.version,
     );
-    const linkDir = join(
+    const linkDirParent = join(
       DENO_DIR.root,
       "deno_esbuild",
       npmPackageId,
       "node_modules",
-      name,
     );
+    const linkDir = join(linkDirParent, name);
 
     // check if the package is already linked, if so, return the link and skip
     // a bunch of work
@@ -124,7 +124,16 @@ export class NativeLoader implements Loader {
     // into it, and then rename it to the final location
     const tmpDir = await Deno.makeTempDir();
     await linkRecursive(packageDir, tmpDir);
-    await Deno.rename(tmpDir, linkDir);
+    try {
+      await Deno.mkdir(linkDirParent, { recursive: true });
+      await Deno.rename(tmpDir, linkDir);
+    } catch (err) {
+      if (err instanceof Deno.errors.AlreadyExists) {
+        // ignore
+      } else {
+        throw err;
+      }
+    }
 
     return linkDir;
   }
