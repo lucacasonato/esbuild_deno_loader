@@ -157,12 +157,16 @@ export function denoLoaderPlugin(
       async function resolveInNodeModules(
         path: string,
         packageId: string,
-        resolveDir: string,
         kind: esbuild.ImportKind,
+        resolveDir: string,
+        importer: string,
+        namespace: string,
       ): Promise<esbuild.OnResolveResult> {
         const result = await build.resolve(path, {
           kind,
           resolveDir,
+          importer,
+          namespace,
           pluginData: IN_NODE_MODULES_RESOLVED,
         });
         result.pluginData = IN_NODE_MODULES;
@@ -198,8 +202,10 @@ export function denoLoaderPlugin(
               return resolveInNodeModules(
                 args.path,
                 parentPackageId,
-                args.resolveDir,
                 args.kind,
+                args.resolveDir,
+                args.importer,
+                args.namespace,
               );
             } else {
               let packageName: string;
@@ -217,18 +223,22 @@ export function denoLoaderPlugin(
                 packageName,
                 parentPackageId,
               );
-              const resolveDir = loaderImpl.nodeModulesDirForPackage(packageId);
+              const resolveDir = await loaderImpl.nodeModulesDirForPackage(
+                packageId,
+              );
               const path = [packageName, ...pathParts].join("/");
               return resolveInNodeModules(
                 path,
                 parentPackageId,
-                resolveDir,
                 args.kind,
+                resolveDir,
+                args.importer,
+                args.namespace,
               );
             }
           } else {
             throw new Error(
-              `To use "npm:" specifiers, you must specify a "cwd" and "nodeModulesDir: true", or use "loader: native".`,
+              `To use "npm:" specifiers, you must specify "nodeModulesDir: true", or use "loader: native".`,
             );
           }
         }
@@ -248,18 +258,22 @@ export function denoLoaderPlugin(
             if (nodeModulesDir) {
               resolveDir = nodeModulesDir;
             } else if (loaderImpl.nodeModulesDirForPackage) {
-              resolveDir = loaderImpl.nodeModulesDirForPackage(res.packageId);
+              resolveDir = await loaderImpl.nodeModulesDirForPackage(
+                res.packageId,
+              );
             } else {
               throw new Error(
-                `To use "npm:" specifiers, you must specify a "cwd" and "nodeModulesDir: true", or use "loader: native".`,
+                `To use "npm:" specifiers, you must specify "nodeModulesDir: true", or use "loader: native".`,
               );
             }
             const path = `${res.packageName}${res.path ?? ""}`;
             return resolveInNodeModules(
               path,
               res.packageId,
-              resolveDir,
               args.kind,
+              resolveDir,
+              args.importer,
+              args.namespace,
             );
           }
           case "node": {
