@@ -577,3 +577,26 @@ test("uncached data url", LOADERS, async (esbuild, loader) => {
   const { value } = await import(dataURL);
   assertEquals(value, rand);
 });
+
+test("browser bundle", ["portable"], async (esbuild, loader) => {
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [
+      ...denoPlugins({
+        loader,
+        requestOptions: { headers: { "User-Agent": "es2022" } },
+      }),
+    ],
+    bundle: true,
+    platform: "neutral",
+    entryPoints: ["./testdata/browser.ts"],
+  });
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 1);
+  const output = res.outputFiles[0];
+  assertEquals(output.path, "<stdout>");
+  const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+  const { template } = await import(dataURL);
+  assert(template);
+});

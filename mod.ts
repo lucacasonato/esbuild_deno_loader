@@ -60,6 +60,11 @@ export interface DenoPluginsOptions {
    * loader always uses a local `node_modules` directory.
    */
   nodeModulesDir?: boolean;
+  /**
+   * Request options to use when fetching remote modules.
+   * This only applies to the `portable` loader.
+   */
+  requestOptions?: RequestInit;
 }
 
 export function denoPlugins(opts: DenoPluginsOptions = {}): esbuild.Plugin[] {
