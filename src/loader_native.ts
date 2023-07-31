@@ -122,7 +122,9 @@ export class NativeLoader implements Loader {
 
     // create a temporary directory, recursively hardlink the package contents
     // into it, and then rename it to the final location
-    const tmpDir = await Deno.makeTempDir();
+    const tmpDir = await Deno.makeTempDir({
+      dir: join(DENO_DIR.root, "deno_esbuild_tmp"),
+    });
     await linkRecursive(packageDir, tmpDir);
     try {
       await Deno.mkdir(linkDirParent, { recursive: true });
