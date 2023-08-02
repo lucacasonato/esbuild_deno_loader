@@ -1,4 +1,4 @@
-import * as esbuild from "https://deno.land/x/esbuild@v0.18.15/mod.js";
+import * as esbuild from "https://deno.land/x/esbuild@v0.18.17/mod.js";
 import { denoPlugins } from "../mod.ts";
 
 await esbuild.build({
