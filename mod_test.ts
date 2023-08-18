@@ -436,7 +436,7 @@ test(
 );
 
 test(
-  "npm specifiers local resolver - preact",
+  "npm specifiers local resolver - @preact/signals",
   LOADERS,
   async (esbuild, loader) => {
     if (esbuild === PLATFORMS.wasm) return;
