@@ -324,6 +324,29 @@ test(
 );
 
 test(
+  "npm specifiers global resolver - @preact/signals",
+  ["native"],
+  async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader })],
+      bundle: true,
+      entryPoints: ["./testdata/npm/preact-signals.ts"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(!output.text.includes(`npm:`));
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: signal } = await import(dataURL);
+    assertEquals(signal.value, 0);
+  },
+);
+
+test(
   "npm specifiers global resolver - is-number",
   ["native"],
   async (esbuild, loader) => {
@@ -354,7 +377,6 @@ test(
     const entryPoint =
       new URL("./testdata/npm/preact.tsx", import.meta.url).href;
     const tmp = Deno.makeTempDirSync();
-    console.log("tmp", tmp);
     if (loader === "portable") {
       new Deno.Command(Deno.execPath(), {
         args: ["cache", "--node-modules-dir", entryPoint],
@@ -410,6 +432,39 @@ test(
     const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
     const { default: html } = await import(dataURL);
     assertEquals(html, "<div>hello world</div>");
+  },
+);
+
+test(
+  "npm specifiers local resolver - preact",
+  LOADERS,
+  async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const entryPoint =
+      new URL("./testdata/npm/preact-signals.ts", import.meta.url).href;
+    const tmp = Deno.makeTempDirSync();
+    if (loader === "portable") {
+      new Deno.Command(Deno.execPath(), {
+        args: ["cache", "--node-modules-dir", entryPoint],
+        cwd: tmp,
+      }).outputSync();
+    }
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader, nodeModulesDir: true })],
+      bundle: true,
+      absWorkingDir: tmp,
+      entryPoints: [entryPoint],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(!output.text.includes(`npm:`));
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: signal } = await import(dataURL);
+    assertEquals(signal.value, 0);
   },
 );
 
