@@ -3,8 +3,10 @@ import {
   DenoDir,
   dirname,
   esbuild,
+  exists,
   fromFileUrl,
   join,
+  move,
 } from "../deps.ts";
 import * as deno from "./deno.ts";
 import {
@@ -120,21 +122,16 @@ export class NativeLoader implements Loader {
 
     // check if the package is already linked, if so, return the link and skip
     // a bunch of work
-    try {
-      await Deno.stat(linkDir);
-      this.#linkDirCache.set(npmPackageId, linkDir);
-      return linkDir;
-    } catch {
-      // directory does not yet exist
-    }
+    if (await exists(linkDir)) return linkDir;
 
     // create a temporary directory, recursively hardlink the package contents
     // into it, and then rename it to the final location
     const tmpDir = await Deno.makeTempDir();
+
     await linkRecursive(packageDir, tmpDir);
     try {
       await Deno.mkdir(linkDirParent, { recursive: true });
-      await Deno.rename(tmpDir, linkDir);
+      await move(tmpDir, linkDir);
     } catch (err) {
       if (err instanceof Deno.errors.AlreadyExists) {
         // ignore
