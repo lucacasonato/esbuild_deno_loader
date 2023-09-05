@@ -632,3 +632,26 @@ test("uncached data url", LOADERS, async (esbuild, loader) => {
   const { value } = await import(dataURL);
   assertEquals(value, rand);
 });
+
+test("scss and css", LOADERS, async (esbuild, loader) => {
+  const configPath = join(Deno.cwd(), "testdata", "config_ref.json");
+  const res = await esbuild.build({
+    ...DEFAULT_OPTS,
+    plugins: [
+      ...denoPlugins({ configPath, loader }),
+    ],
+    outdir: 'dist',
+    bundle: true,
+    entryPoints: [
+      `./testdata/scss_test.tsx`,
+    ],
+  });
+
+  assertEquals(res.warnings, []);
+  assertEquals(res.errors, []);
+  assertEquals(res.outputFiles.length, 2);
+  const cssOutputFile = res.outputFiles.filter(f => /\.css$/.test(f.path));
+  const text = cssOutputFile[0].text;
+
+  assert(/ul li a \{/.test(text));
+});

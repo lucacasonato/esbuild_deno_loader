@@ -1,4 +1,4 @@
-import { esbuild, join } from "../deps.ts";
+import { esbuild, join, sass } from "../deps.ts";
 import { NativeLoader } from "./loader_native.ts";
 import { PortableLoader } from "./loader_portable.ts";
 import {
@@ -299,7 +299,11 @@ export function denoLoaderPlugin(
           return { loader: "js", contents };
         }
         if(/\.s?css$/.test(args.path)) {
-          const contents = await Deno.readFile(args.path);
+          const contents = await Deno.readTextFile(args.path);
+          if(/\.s?css$/.test(args.path)) {
+            const css = sass(contents).to_string("compressed")
+            return { loader: 'css', contents: css.toString() }
+          }
           return { loader: 'css', contents };
         }
         const specifier = esbuildResolutionToURL(args);

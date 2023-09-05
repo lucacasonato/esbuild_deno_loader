@@ -21,3 +21,6 @@ export type {
   SpecifierMap,
 } from "https://deno.land/x/importmap@0.2.1/mod.ts";
 export { DenoDir } from "https://deno.land/x/deno_cache@0.4.1/mod.ts";
+
+import sass from "https://deno.land/x/denosass@1.0.5/mod.ts";
+export { sass };
