@@ -1,4 +1,4 @@
-import { esbuild, join, sass } from "../deps.ts";
+import { esbuild, join, dirname, sass } from "../deps.ts";
 import { NativeLoader } from "./loader_native.ts";
 import { PortableLoader } from "./loader_portable.ts";
 import {
@@ -301,7 +301,7 @@ export function denoLoaderPlugin(
         if(/\.s?css$/.test(args.path)) {
           const contents = await Deno.readTextFile(args.path);
           if(/\.s?css$/.test(args.path)) {
-            const css = sass(contents).to_string("compressed")
+            const css = sass(contents, { load_paths: [dirname(args.path)] }).to_string("compressed")
             return { loader: 'css', contents: css.toString() }
           }
           return { loader: 'css', contents };
