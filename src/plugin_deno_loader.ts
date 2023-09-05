@@ -298,6 +298,10 @@ export function denoLoaderPlugin(
           const contents = await Deno.readFile(args.path);
           return { loader: "js", contents };
         }
+        if(/\.s?css$/.test(args.path)) {
+          const contents = await Deno.readFile(args.path);
+          return { loader: 'css', contents };
+        }
         const specifier = esbuildResolutionToURL(args);
         return loaderImpl.loadEsm(specifier);
       }

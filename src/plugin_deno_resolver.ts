@@ -6,6 +6,7 @@ import {
   Scopes,
   SpecifierMap,
   toFileUrl,
+  join,
 } from "../deps.ts";
 import { readDenoConfig, urlToEsbuildResolution } from "./shared.ts";
 
@@ -103,6 +104,10 @@ export function denoResolverPlugin(
           });
           if (!res.external) nodeModulesPaths.add(res.path);
           return res;
+        }
+
+        if(/\.s?css$/.test(args.path)) {
+          return { path: join(args.resolveDir, args.path) }
         }
 
         // The first pass resolver performs synchronous resolution. This
