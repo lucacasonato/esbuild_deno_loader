@@ -1,4 +1,4 @@
-import type * as esbuild from "https://deno.land/x/esbuild@v0.18.17/mod.d.ts";
+import type * as esbuild from "https://deno.land/x/esbuild@v0.19.2/mod.d.ts";
 export type { esbuild };
 export {
   dirname,
@@ -6,11 +6,11 @@ export {
   join,
   resolve,
   toFileUrl,
-} from "https://deno.land/std@0.196.0/path/mod.ts";
-export { copy } from "https://deno.land/std@0.196.0/fs/mod.ts";
-export { basename, extname } from "https://deno.land/std@0.196.0/path/mod.ts";
-export * as JSONC from "https://deno.land/std@0.196.0/jsonc/mod.ts";
-export { encode as base32Encode } from "https://deno.land/std@0.196.0/encoding/base32.ts";
+} from "https://deno.land/std@0.201.0/path/mod.ts";
+export { copy } from "https://deno.land/std@0.201.0/fs/mod.ts";
+export { basename, extname } from "https://deno.land/std@0.201.0/path/mod.ts";
+export * as JSONC from "https://deno.land/std@0.201.0/jsonc/mod.ts";
+export { encode as base32Encode } from "https://deno.land/std@0.201.0/encoding/base32.ts";
 export {
   resolveImportMap,
   resolveModuleSpecifier,
