@@ -1,4 +1,11 @@
-import { base32Encode, DenoDir, esbuild, fromFileUrl, join } from "../deps.ts";
+import {
+  base32Encode,
+  DenoDir,
+  dirname,
+  esbuild,
+  fromFileUrl,
+  join,
+} from "../deps.ts";
 import * as deno from "./deno.ts";
 import {
   Loader,
@@ -102,13 +109,14 @@ export class NativeLoader implements Loader {
       name,
       npmPackage.version,
     );
-    const linkDirParent = join(
+    const linkDir = join(
       DENO_DIR.root,
       "deno_esbuild",
       npmPackageId,
       "node_modules",
+      name,
     );
-    const linkDir = join(linkDirParent, name);
+    const linkDirParent = dirname(linkDir);
 
     // check if the package is already linked, if so, return the link and skip
     // a bunch of work
