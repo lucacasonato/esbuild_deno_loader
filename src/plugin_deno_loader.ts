@@ -122,7 +122,7 @@ export function denoLoaderPlugin(
   }
   return {
     name: "deno-loader",
-    setup(build) {
+    setup(build: esbuild.PluginBuild) {
       const cwd = build.initialOptions.absWorkingDir ?? Deno.cwd();
 
       let nodeModulesDir: string | null = null;
@@ -298,15 +298,28 @@ export function denoLoaderPlugin(
           const contents = await Deno.readFile(args.path);
           return { loader: "js", contents };
         }
+        if (Deno.env.get('LOG')=='DEBUG') console.log('Loader::', args.path, args.namespace, !/(\.(tsx|ts|jsx|js)?)$/.test(args.path));
         if(/\.s?css$/.test(args.path)) {
+          if (Deno.env.get('LOG')=='DEBUG') console.log('CSS Loader:', args.path);
           const contents = await Deno.readTextFile(args.path);
-          if(/\.s?css$/.test(args.path)) {
+          if(/\.scss$/.test(args.path)) {
+            if (Deno.env.get('LOG')=='DEBUG') console.log('SCSS Loader:', args.path);
             const css = sass(contents, { load_paths: [dirname(args.path)] }).to_string("compressed")
             return { loader: 'css', contents: css.toString() }
           }
           return { loader: 'css', contents };
+        } else if (args.namespace=='file' && !/(\.(tsx|ts|jsx|js))$/.test(args.path)) {
+          if (Deno.env.get('LOG')=='DEBUG') console.log('File Loader::', args.path);
+          const contents = await Deno.readTextFile(args.path);
+          return { loader: 'file', contents };
         }
+
+        // console.log('TS Loader', args.path);
+        // const contents = await Deno.readTextFile(args.path);
+        // return { loader: 'tsx', contents };
+
         const specifier = esbuildResolutionToURL(args);
+        if (Deno.env.get('LOG')=='DEBUG') console.log('SPECIFIER:', specifier.href);
         return loaderImpl.loadEsm(specifier);
       }
       // TODO(lucacasonato): once https://github.com/evanw/esbuild/pull/2968 is fixed, remove the catch all "file" handler
