@@ -122,7 +122,10 @@ export class NativeLoader implements Loader {
 
     // check if the package is already linked, if so, return the link and skip
     // a bunch of work
-    if (await exists(linkDir)) return linkDir;
+    if (await exists(linkDir)) {
+      this.#linkDirCache.set(npmPackageId, linkDir);
+      return linkDir;
+    }
 
     // create a temporary directory, recursively hardlink the package contents
     // into it, and then rename it to the final location
