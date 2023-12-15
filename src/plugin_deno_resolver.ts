@@ -148,14 +148,15 @@ export function denoResolverPlugin(
           kind: args.kind,
         });
         if (res.pluginData === IN_NODE_MODULES) nodeModulesPaths.add(res.path);
-        
+
         if (build.initialOptions.external) {
           for (const external of build.initialOptions.external) {
-            if ((resolved.href.startsWith(external)) || (args.path === external)) {
-              return { path: resolved.href, external: true };
+            if (args.path === external) {
+              return { path: args.path, external: true };
             }
           }
         }
+
         return res;
       });
     },
