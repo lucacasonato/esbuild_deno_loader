@@ -1,5 +1,5 @@
-import * as esbuildNative from "https://deno.land/x/esbuild@v0.19.2/mod.js";
-import * as esbuildWasm from "https://deno.land/x/esbuild@v0.19.2/wasm.js";
+import * as esbuildNative from "https://deno.land/x/esbuild@v0.19.10/mod.js";
+import * as esbuildWasm from "https://deno.land/x/esbuild@v0.19.10/wasm.js";
 export { esbuildNative, esbuildWasm };
 export {
   assert,
