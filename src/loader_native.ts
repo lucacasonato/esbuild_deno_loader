@@ -1,5 +1,5 @@
 import {
-  base32Encode,
+  encodeBase32,
   DenoDir,
   dirname,
   esbuild,
@@ -99,7 +99,7 @@ export class NativeLoader implements Loader {
   ): Promise<string> {
     let name = npmPackage.name;
     if (name.toLowerCase() !== name) {
-      name = `_${base32Encode(new TextEncoder().encode(name))}`;
+      name = `_${encodeBase32(new TextEncoder().encode(name))}`;
     }
     if (!DENO_DIR) DENO_DIR = new DenoDir(undefined, true);
     const packageDir = join(

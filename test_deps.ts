@@ -5,5 +5,5 @@ export {
   assert,
   assertEquals,
   assertThrows,
-} from "https://deno.land/std@0.201.0/assert/mod.ts";
-export { join } from "https://deno.land/std@0.201.0/path/mod.ts";
+} from "https://deno.land/std@0.210.0/assert/mod.ts";
+export { join } from "https://deno.land/std@0.210.0/path/mod.ts";

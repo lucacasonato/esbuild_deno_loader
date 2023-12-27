@@ -6,11 +6,11 @@ export {
   join,
   resolve,
   toFileUrl,
-} from "https://deno.land/std@0.201.0/path/mod.ts";
-export { copy } from "https://deno.land/std@0.201.0/fs/mod.ts";
-export { basename, extname } from "https://deno.land/std@0.201.0/path/mod.ts";
-export * as JSONC from "https://deno.land/std@0.201.0/jsonc/mod.ts";
-export { encode as base32Encode } from "https://deno.land/std@0.201.0/encoding/base32.ts";
+} from "https://deno.land/std@0.210.0/path/mod.ts";
+export { copy } from "https://deno.land/std@0.210.0/fs/mod.ts";
+export { basename, extname } from "https://deno.land/std@0.210.0/path/mod.ts";
+export * as JSONC from "https://deno.land/std@0.210.0/jsonc/mod.ts";
+export { encodeBase32 } from "https://deno.land/std@0.210.0/encoding/base32.ts";
 export {
   resolveImportMap,
   resolveModuleSpecifier,
