@@ -45,8 +45,30 @@ export function mediaTypeToLoader(mediaType: MediaType): esbuild.Loader {
       return "tsx";
     case "Json":
       return "json";
+    case "Dts":
+      return "ts";
     default:
       throw new Error(`Unhandled media type ${mediaType}.`);
+  }
+}
+
+export function getLoaderFromPath(path: string): esbuild.Loader {
+  const ext = extname(path);
+  switch (ext) {
+    case ".ts":
+      return "ts";
+    case ".tsx":
+      return "tsx";
+    case ".js":
+      return "js";
+    case ".jsx":
+      return "jsx";
+    case ".mjs":
+      return "js";
+    case ".json":
+      return "json";
+    default:
+      return "default";
   }
 }
 
@@ -74,10 +96,12 @@ export function esbuildResolutionToURL(specifier: EsbuildResolution): URL {
 }
 
 interface DenoConfig {
-  imports?: unknown;
+  imports?: Record<string, string>;
   scopes?: unknown;
   lock?: boolean | string;
   importMap?: string;
+  nodeModulesDir?: boolean;
+  vendor?: boolean;
 }
 
 export async function readDenoConfig(path: string): Promise<DenoConfig> {

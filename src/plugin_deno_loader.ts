@@ -8,6 +8,7 @@ import {
 import {
   esbuildResolutionToURL,
   Loader,
+  readDenoConfig,
   urlToEsbuildResolution,
 } from "./shared.ts";
 
@@ -134,20 +135,29 @@ export function denoLoaderPlugin(
 
       const packageIdMapping = new Map<string, string>();
 
-      build.onStart(function onStart() {
+      build.onStart(async function onStart() {
         packageIdMapping.clear();
         switch (loader) {
           case "native":
-            loaderImpl = new NativeLoader({
-              infoOptions: {
-                cwd,
-                config: options.configPath,
-                importMap: options.importMapURL,
-                // TODO(lucacasonato): https://github.com/denoland/deno/issues/18159
-                // lock: options.lockPath,
-                nodeModulesDir: options.nodeModulesDir,
-              },
-            });
+            {
+              if (options.configPath) {
+                const config = await readDenoConfig(options.configPath);
+                if (config.nodeModulesDir) {
+                  options.nodeModulesDir = config.nodeModulesDir;
+                }
+              }
+
+              loaderImpl = new NativeLoader({
+                infoOptions: {
+                  cwd,
+                  config: options.configPath,
+                  importMap: options.importMapURL,
+                  // TODO(lucacasonato): https://github.com/denoland/deno/issues/18159
+                  // lock: options.lockPath,
+                  nodeModulesDir: options.nodeModulesDir,
+                },
+              });
+            }
             break;
           case "portable":
             loaderImpl = new PortableLoader();
@@ -178,6 +188,7 @@ export function denoLoaderPlugin(
         args: esbuild.OnResolveArgs,
       ): Promise<esbuild.OnResolveResult | null | undefined> {
         if (args.namespace === "file" && args.pluginData === IN_NODE_MODULES) {
+          console.log("NPM", args.path);
           if (nodeModulesDir) {
             const result = await build.resolve(args.path, {
               kind: args.kind,
@@ -254,6 +265,7 @@ export function denoLoaderPlugin(
             return urlToEsbuildResolution(specifier);
           }
           case "npm": {
+            console.log("NPM", specifier.href);
             let resolveDir: string;
             if (nodeModulesDir) {
               resolveDir = nodeModulesDir;
@@ -267,6 +279,7 @@ export function denoLoaderPlugin(
               );
             }
             const path = `${res.packageName}${res.path ?? ""}`;
+            console.log({ path });
             return resolveInNodeModules(
               path,
               res.packageId,
@@ -294,6 +307,9 @@ export function denoLoaderPlugin(
       async function onLoad(
         args: esbuild.OnLoadArgs,
       ): Promise<esbuild.OnLoadResult | null> {
+        if (args.path.includes("gsap")) {
+          console.log("esbuild load", args);
+        }
         if (args.namespace === "file" && args.pluginData === IN_NODE_MODULES) {
           const contents = await Deno.readFile(args.path);
           return { loader: "js", contents };

@@ -20,6 +20,7 @@ import {
   denoLoaderPlugin,
   type DenoLoaderPluginOptions,
 } from "./src/plugin_deno_loader.ts";
+import { denoEsbuildPlugin } from "./src/new.ts";
 export { DEFAULT_LOADER, denoLoaderPlugin, DenoLoaderPluginOptions };
 
 export {
@@ -63,8 +64,10 @@ export interface DenoPluginsOptions {
 }
 
 export function denoPlugins(opts: DenoPluginsOptions = {}): esbuild.Plugin[] {
-  return [
-    denoResolverPlugin(opts),
-    denoLoaderPlugin(opts),
-  ];
+  // return [
+  //   denoResolverPlugin(opts),
+  //   denoLoaderPlugin(opts),
+  // ];
+
+  return [denoEsbuildPlugin(opts)];
 }

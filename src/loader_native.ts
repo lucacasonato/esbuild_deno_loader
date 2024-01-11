@@ -13,29 +13,34 @@ import {
   mapContentType,
   mediaTypeToLoader,
   parseNpmSpecifier,
+  readDenoConfig,
 } from "./shared.ts";
 
 let DENO_DIR: DenoDir | undefined;
 
 export interface NativeLoaderOptions {
-  infoOptions?: deno.InfoOptions;
+  infoOptions: deno.InfoOptions;
 }
 
 export class NativeLoader implements Loader {
   #infoCache: deno.InfoCache;
   #linkDirCache: Map<string, string> = new Map(); // mapping from package id -> link dir
+  #options: NativeLoaderOptions;
 
   constructor(options: NativeLoaderOptions) {
+    this.#options = options;
     this.#infoCache = new deno.InfoCache(options.infoOptions);
   }
 
   async resolve(specifier: URL): Promise<LoaderResolution> {
     const entry = await this.#infoCache.get(specifier.href);
+    // console.log("resolve", specifier.href, "->", entry);
     if ("error" in entry) throw new Error(entry.error);
 
     if (entry.kind === "npm") {
       // TODO(lucacasonato): remove parsing once https://github.com/denoland/deno/issues/18043 is resolved
       const parsed = parseNpmSpecifier(new URL(entry.specifier));
+      console.log("npm parsed", parsed, specifier.href, entry.specifier);
       return {
         kind: "npm",
         packageId: entry.npmPackage,
@@ -82,7 +87,9 @@ export class NativeLoader implements Loader {
     const npmPackage = this.#infoCache.getNpmPackage(npmPackageId);
     if (!npmPackage) throw new Error("NPM package not found.");
 
+    console.log(npmPackageId, npmPackage);
     let linkDir = this.#linkDirCache.get(npmPackageId);
+    console.log({ linkDir });
     if (!linkDir) {
       linkDir = await this.#nodeModulesDirForPackageInner(
         npmPackageId,
@@ -101,7 +108,12 @@ export class NativeLoader implements Loader {
     if (name.toLowerCase() !== name) {
       name = `_${encodeBase32(new TextEncoder().encode(name))}`;
     }
-    if (!DENO_DIR) DENO_DIR = new DenoDir(undefined);
+    if (!DENO_DIR) DENO_DIR = new DenoDir();
+    console.log(this.#options, DENO_DIR.root);
+    // const config = await readDenoConfig(this.#options.infoOptions?.config);
+    if (this.#options.infoOptions.nodeModulesDir) {
+      console.log("local node modules");
+    }
     const packageDir = join(
       DENO_DIR.root,
       "npm",
@@ -116,6 +128,7 @@ export class NativeLoader implements Loader {
       "node_modules",
       name,
     );
+    console.log({ packageDir, linkDir });
     const linkDirParent = dirname(linkDir);
 
     // check if the package is already linked, if so, return the link and skip

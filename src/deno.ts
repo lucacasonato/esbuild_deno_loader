@@ -39,6 +39,11 @@ export interface ModuleEntryError extends ModuleEntryBase {
   error: string;
 }
 
+// deno-lint-ignore no-explicit-any
+export function isModuleEntryError(x: any): x is ModuleEntryError {
+  return x !== null && typeof x === "object" && typeof x.error === "string";
+}
+
 export interface ModuleEntryEsm extends ModuleEntryBase {
   kind: "esm";
   local: string | null;
@@ -81,16 +86,15 @@ export interface InfoOptions {
 
 let tmpDir: string | undefined;
 
-async function info(
-  specifier: string,
+function parseCommandOptions(
   options: InfoOptions,
-): Promise<InfoOutput> {
+): Omit<Deno.CommandOptions, "args"> & { args: string[] } {
   const opts = {
     args: ["info", "--json"],
     cwd: undefined as string | undefined,
     env: { DENO_NO_PACKAGE_JSON: "true" } as Record<string, string>,
-    stdout: "piped",
-    stderr: "inherit",
+    stdout: "piped" as const,
+    stderr: "inherit" as const,
   };
   if (typeof options.config === "string") {
     opts.args.push("--config", options.config);
@@ -116,6 +120,14 @@ async function info(
     opts.cwd = tmpDir;
   }
 
+  return opts;
+}
+
+export async function denoInfo(
+  specifier: string,
+  options: InfoOptions,
+): Promise<InfoOutput> {
+  const opts = parseCommandOptions(options);
   opts.args.push(specifier);
 
   const output = await new Deno.Command(
@@ -129,12 +141,28 @@ async function info(
   return JSON.parse(txt);
 }
 
-export class InfoCache {
-  #options: InfoOptions;
+export async function denoCache(
+  specifier: string,
+  options: InfoOptions,
+): Promise<void> {
+  const opts = parseCommandOptions(options);
+  opts.args.push(specifier);
 
+  const output = await new Deno.Command(
+    Deno.execPath(),
+    opts,
+  ).output();
+
+  if (!output.success) {
+    throw new Error(`Failed to call 'deno cache' on '${specifier}'`);
+  }
+}
+
+export class InfoCache {
   #modules: Map<string, ModuleEntry> = new Map();
   #redirects: Map<string, string> = new Map();
   #npmPackages: Map<string, NpmPackage> = new Map();
+  #options: InfoOptions;
 
   constructor(options: InfoOptions = {}) {
     this.#options = options;
@@ -168,10 +196,11 @@ export class InfoCache {
   }
 
   async #load(specifier: string): Promise<void> {
-    const { modules, redirects, npmPackages } = await info(
+    const { modules, redirects, npmPackages } = await denoInfo(
       specifier,
       this.#options,
     );
+    console.log({ modules, redirects, npmPackages });
     for (const module of modules) {
       this.#modules.set(module.specifier, module);
     }
@@ -185,6 +214,9 @@ export class InfoCache {
     specifier = this.#resolve(specifier);
     const entry = this.#modules.get(specifier);
     if (entry === undefined && specifier.startsWith("npm:")) {
+      // npm modules are not cached by `deno info`
+      await denoCache(specifier, this.#options);
+
       // we hit https://github.com/denoland/deno/issues/18043, so we have to
       // perform another load to get the actual data of the redirected specifier
       await this.#load(specifier);
