@@ -86,28 +86,32 @@ const NPM_SPECIFIER_VALID: Array<NpmSpecifierTestCase> = [
   },
 ];
 
-for (const test of NPM_SPECIFIER_VALID) {
-  Deno.test(`parseNpmSpecifier: ${test.specifier}`, () => {
-    const parsed = parseNpmSpecifier(new URL(test.specifier));
-    assertEquals(parsed, {
-      name: test.name,
-      version: test.version,
-      path: test.path,
+Deno.test("parseNpmSpecifier", async (t) => {
+  for (const test of NPM_SPECIFIER_VALID) {
+    await t.step(test.specifier, () => {
+      const parsed = parseNpmSpecifier(new URL(test.specifier));
+      assertEquals(parsed, {
+        name: test.name,
+        version: test.version,
+        path: test.path,
+      });
     });
-  });
-}
+  }
+});
 
 const NPM_SPECIFIER_INVALID = [
   "npm:@package",
   "npm:/",
   "npm://test",
 ];
-for (const specifier of NPM_SPECIFIER_INVALID) {
-  Deno.test(`parseNpmSpecifier: ${specifier}`, () => {
-    assertThrows(
-      () => parseNpmSpecifier(new URL(specifier)),
-      Error,
-      "Invalid npm specifier",
-    );
-  });
-}
+Deno.test("parseNpmSpecifier", async (t) => {
+  for (const specifier of NPM_SPECIFIER_INVALID) {
+    await t.step(specifier, () => {
+      assertThrows(
+        () => parseNpmSpecifier(new URL(specifier)),
+        Error,
+        "Invalid npm specifier",
+      );
+    });
+  }
+});
