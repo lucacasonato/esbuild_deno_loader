@@ -1,0 +1,10 @@
+{
+  "lock": false,
+  "tasks": {
+    "test": "deno test -A --parallel --trace-ops",
+    "check:types": "deno check **/*.ts",
+    "ok": "deno fmt --check && deno lint && deno task check:types && deno task test"
+  },
+  "fmt": { "exclude": ["dist"] },
+  "lint": { "exclude": ["dist"] }
+}
