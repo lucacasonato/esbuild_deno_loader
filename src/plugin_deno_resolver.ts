@@ -7,11 +7,7 @@ import {
   SpecifierMap,
   toFileUrl,
 } from "../deps.ts";
-import {
-  esbuildResolutionToURL,
-  readDenoConfig,
-  urlToEsbuildResolution,
-} from "./shared.ts";
+import { readDenoConfig, urlToEsbuildResolution } from "./shared.ts";
 
 export type { ImportMap, Scopes, SpecifierMap };
 
