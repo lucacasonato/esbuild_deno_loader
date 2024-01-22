@@ -229,7 +229,7 @@ export function denoLoaderPlugin(
               const path = [packageName, ...pathParts].join("/");
               return resolveInNodeModules(
                 path,
-                parentPackageId,
+                packageId,
                 args.kind,
                 resolveDir,
                 args.importer,
