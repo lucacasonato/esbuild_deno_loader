@@ -47,6 +47,17 @@ export function denoResolverPlugin(
       let importMap: ImportMap | null = null;
       let nodeModulesPaths: Set<string>;
 
+      const externalRegexps: RegExp[] = (build.initialOptions.external ?? [])
+        .map((external) => {
+          const regexp = new RegExp(
+            "^" + external.replace(/[-/\\^$+?.()|[\]{}]/g, "\\$&").replace(
+              /\*/g,
+              ".*",
+            ) + "$",
+          );
+          return regexp;
+        });
+
       build.onStart(async function onStart() {
         nodeModulesPaths = new Set<string>();
 
@@ -137,6 +148,15 @@ export function denoResolverPlugin(
           resolved = new URL(res);
         } else {
           resolved = new URL(args.path, referrer);
+        }
+
+        for (const externalRegexp of externalRegexps) {
+          if (externalRegexp.test(resolved.href)) {
+            return {
+              path: resolved.href,
+              external: true,
+            };
+          }
         }
 
         // Now pass the resolved specifier back into the resolver, for a second
