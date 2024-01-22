@@ -78,6 +78,59 @@ export const DEFAULT_LOADER: typeof LOADERS[number] =
     ? "portable"
     : "native";
 
+const BUILTIN_NODE_MODULES = new Set([
+  "assert",
+  "assert/strict",
+  "async_hooks",
+  "buffer",
+  "child_process",
+  "cluster",
+  "console",
+  "constants",
+  "crypto",
+  "dgram",
+  "diagnostics_channel",
+  "dns",
+  "dns/promises",
+  "domain",
+  "events",
+  "fs",
+  "fs/promises",
+  "http",
+  "http2",
+  "https",
+  "module",
+  "net",
+  "os",
+  "path",
+  "path/posix",
+  "path/win32",
+  "perf_hooks",
+  "process",
+  "punycode",
+  "querystring",
+  "repl",
+  "readline",
+  "stream",
+  "stream/consumers",
+  "stream/promises",
+  "stream/web",
+  "string_decoder",
+  "sys",
+  "test",
+  "timers",
+  "timers/promises",
+  "tls",
+  "tty",
+  "url",
+  "util",
+  "util/types",
+  "v8",
+  "vm",
+  "worker_threads",
+  "zlib",
+]);
+
 /**
  * The Deno loader plugin for esbuild. This plugin will load fully qualified
  * `file`, `http`, `https`, and `data` URLs.
@@ -178,6 +231,15 @@ export function denoLoaderPlugin(
         args: esbuild.OnResolveArgs,
       ): Promise<esbuild.OnResolveResult | null | undefined> {
         if (args.namespace === "file" && args.pluginData === IN_NODE_MODULES) {
+          if (
+            BUILTIN_NODE_MODULES.has(args.path) ||
+            BUILTIN_NODE_MODULES.has("node:" + args.path)
+          ) {
+            return {
+              path: args.path,
+              external: true,
+            };
+          }
           if (nodeModulesDir) {
             const result = await build.resolve(args.path, {
               kind: args.kind,

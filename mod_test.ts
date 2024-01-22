@@ -411,6 +411,27 @@ Deno.test("npm specifiers global resolver - @oramacloud/client", async (t) => {
   });
 });
 
+Deno.test("npm specifiers global resolver - typo-js", async (t) => {
+  await testLoader(t, ["native"], async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader })],
+      bundle: true,
+      entryPoints: ["npm:typo-js"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(!output.text.includes(`npm:`));
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: Typo } = await import(dataURL);
+    assertEquals(typeof Typo, "function");
+  });
+});
+
 Deno.test("npm specifiers local resolver - preact", async (t) => {
   await testLoader(t, LOADERS, async (esbuild, loader) => {
     if (esbuild === PLATFORMS.wasm) return;
@@ -504,7 +525,7 @@ Deno.test("npm specifiers local resolver - @preact/signals", async (t) => {
   });
 });
 
-Deno.test("npm specifiers local resolver - @preact/signals", async (t) => {
+Deno.test("npm specifiers local resolver - @oramacloud/client", async (t) => {
   await testLoader(t, LOADERS, async (esbuild, loader) => {
     if (esbuild === PLATFORMS.wasm) return;
     const entryPoint =
@@ -532,6 +553,35 @@ Deno.test("npm specifiers local resolver - @preact/signals", async (t) => {
     const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
     const { OramaClient } = await import(dataURL);
     assertEquals(typeof OramaClient, "function");
+  });
+});
+
+Deno.test("npm specifiers local resolver - typo-js", async (t) => {
+  await testLoader(t, LOADERS, async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const tmp = Deno.makeTempDirSync();
+    if (loader === "portable") {
+      new Deno.Command(Deno.execPath(), {
+        args: ["cache", "--node-modules-dir", "npm:typo-js"],
+        cwd: tmp,
+      }).outputSync();
+    }
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader, nodeModulesDir: true })],
+      bundle: true,
+      absWorkingDir: tmp,
+      entryPoints: ["npm:typo-js"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(output.text.includes(`require("fs")`));
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: Typo } = await import(dataURL);
+    assertEquals(typeof Typo, "function");
   });
 });
 
