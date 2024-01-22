@@ -117,6 +117,7 @@ export class NativeLoader implements Loader {
       name,
     );
     const linkDirParent = dirname(linkDir);
+    const tmpDirParent = join(DENO_DIR.root, "deno_esbuild_tmp");
 
     // check if the package is already linked, if so, return the link and skip
     // a bunch of work
@@ -130,7 +131,8 @@ export class NativeLoader implements Loader {
 
     // create a temporary directory, recursively hardlink the package contents
     // into it, and then rename it to the final location
-    const tmpDir = await Deno.makeTempDir();
+    await Deno.mkdir(tmpDirParent, { recursive: true });
+    const tmpDir = await Deno.makeTempDir({ dir: tmpDirParent });
     await linkRecursive(packageDir, tmpDir);
     try {
       await Deno.mkdir(linkDirParent, { recursive: true });
