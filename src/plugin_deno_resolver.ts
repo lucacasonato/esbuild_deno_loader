@@ -7,7 +7,11 @@ import {
   SpecifierMap,
   toFileUrl,
 } from "../deps.ts";
-import { readDenoConfig, urlToEsbuildResolution } from "./shared.ts";
+import {
+  esbuildResolutionToURL,
+  readDenoConfig,
+  urlToEsbuildResolution,
+} from "./shared.ts";
 
 export type { ImportMap, Scopes, SpecifierMap };
 
@@ -46,6 +50,17 @@ export function denoResolverPlugin(
     setup(build) {
       let importMap: ImportMap | null = null;
       let nodeModulesPaths: Set<string>;
+
+      const externalRegexps: RegExp[] = (build.initialOptions.external ?? [])
+        .map((external) => {
+          const regexp = new RegExp(
+            "^" + external.replace(/[-/\\^$+?.()|[\]{}]/g, "\\$&").replace(
+              /\*/g,
+              ".*",
+            ) + "$",
+          );
+          return regexp;
+        });
 
       build.onStart(async function onStart() {
         nodeModulesPaths = new Set<string>();
@@ -139,6 +154,15 @@ export function denoResolverPlugin(
           resolved = new URL(args.path, referrer);
         }
 
+        for (const externalRegexp of externalRegexps) {
+          if (externalRegexp.test(resolved.href)) {
+            return {
+              path: resolved.href,
+              external: true,
+            };
+          }
+        }
+
         // Now pass the resolved specifier back into the resolver, for a second
         // pass. Now plugins can perform any resolution they want on the fully
         // resolved specifier.
@@ -148,10 +172,6 @@ export function denoResolverPlugin(
           kind: args.kind,
         });
         if (res.pluginData === IN_NODE_MODULES) nodeModulesPaths.add(res.path);
-        if (build.initialOptions.external)
-          for (const external of build.initialOptions.external)
-            if (new RegExp('^' + external.replace(/[-/\\^$+?.()|[\]{}]/g, '\\$&').replace(/\*/g, '.*') + '$').test(args.path))
-              return { path: args.path, external: true };
         return res;
       });
     },

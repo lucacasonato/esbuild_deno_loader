@@ -6,7 +6,7 @@ import {
 } from "./mod.ts";
 import { denoLoaderPlugin } from "./src/plugin_deno_loader.ts";
 import { esbuildNative, esbuildWasm, join } from "./test_deps.ts";
-import { assert, assertEquals } from "./test_deps.ts";
+import { assert, assertEquals, assertStringIncludes } from "./test_deps.ts";
 
 await esbuildNative.initialize({});
 await esbuildWasm.initialize({});
@@ -655,5 +655,27 @@ Deno.test("uncached data url", async (t) => {
     const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
     const { value } = await import(dataURL);
     assertEquals(value, rand);
+  });
+});
+
+Deno.test("externals", async (t) => {
+  await testLoader(t, LOADERS, async (esbuild, loader) => {
+    const configPath = join(Deno.cwd(), "testdata", "config_ref.json");
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [
+        ...denoPlugins({ configPath, loader }),
+      ],
+      bundle: true,
+      platform: "neutral",
+      entryPoints: ["./testdata/externals.ts"],
+      external: ["foo:bar", "foo:baz/*", "bar"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertStringIncludes(output.text, "foo:bar");
+    assertStringIncludes(output.text, "foo:baz/bar");
   });
 });
