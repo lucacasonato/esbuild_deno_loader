@@ -138,8 +138,11 @@ export class NativeLoader implements Loader {
       await Deno.mkdir(linkDirParent, { recursive: true });
       await Deno.rename(tmpDir, linkDir);
     } catch (err) {
-      if (err instanceof Deno.errors.AlreadyExists) {
-        // ignore
+      if (
+        err instanceof Deno.errors.AlreadyExists ||
+        err.code === "ENOTEMPTY"
+      ) {
+        // ignore, someone else created the directory already
       } else {
         throw err;
       }
