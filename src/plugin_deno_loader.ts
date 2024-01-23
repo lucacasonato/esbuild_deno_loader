@@ -67,6 +67,11 @@ export interface DenoLoaderPluginOptions {
    * loader always uses a local `node_modules` directory.
    */
   nodeModulesDir?: boolean;
+  /**
+   * Request options to use when fetching remote modules.
+   * This only applies to the `portable` loader.
+   */
+  requestOptions?: RequestInit;
 }
 
 const LOADERS = ["native", "portable"] as const;
@@ -203,7 +208,7 @@ export function denoLoaderPlugin(
             });
             break;
           case "portable":
-            loaderImpl = new PortableLoader();
+            loaderImpl = new PortableLoader(options.requestOptions);
         }
       });
 

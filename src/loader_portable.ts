@@ -20,6 +20,12 @@ export class PortableLoader implements Loader {
   #fetchModules = new Map<string, Module>();
   #fetchRedirects = new Map<string, string>();
 
+  #requestOptions: RequestInit | undefined;
+
+  constructor(requestOptions?: RequestInit) {
+    this.#requestOptions = requestOptions;
+  }
+
   async resolve(specifier: URL): Promise<LoaderResolution> {
     switch (specifier.protocol) {
       case "file:": {
@@ -97,9 +103,11 @@ export class PortableLoader implements Loader {
   }
 
   async #fetch(specifier: string): Promise<void> {
-    const resp = await fetch(specifier, {
+    const requestOptions: RequestInit = {
       redirect: "manual",
-    });
+      ...this.#requestOptions,
+    };
+    const resp = await fetch(specifier, requestOptions);
     if (resp.status < 200 && resp.status >= 400) {
       throw new Error(
         `Encountered status code ${resp.status} while fetching ${specifier}.`,
