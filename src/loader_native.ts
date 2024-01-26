@@ -175,6 +175,6 @@ async function linkRecursive(from: string, to: string) {
       await linkRecursive(join(from, entry.name), join(to, entry.name));
     }
   } else {
-    await Deno.link(from, to);
+    await Deno.symlink(from, to);
   }
 }
