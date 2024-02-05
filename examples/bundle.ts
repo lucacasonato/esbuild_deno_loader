@@ -2,8 +2,8 @@ import * as esbuild from "https://deno.land/x/esbuild@v0.19.11/mod.js";
 import { denoPlugins } from "../mod.ts";
 
 await esbuild.build({
-  plugins: [...denoPlugins()],
-  entryPoints: ["https://deno.land/std@0.185.0/bytes/mod.ts"],
+  plugins: [...denoPlugins({ configPath: "./deno.json" })],
+  entryPoints: ["jsr:@std/bytes@^0.213"],
   outfile: "./dist/bytes.esm.js",
   bundle: true,
   format: "esm",

@@ -100,12 +100,11 @@ async function info(
   if (options.importMap) {
     opts.args.push("--import-map", options.importMap);
   }
-  // TODO: enable when https://github.com/denoland/deno/issues/18159 is fixed
-  // if (typeof options.lock === "string") {
-  //   opts.args.push("--lock", options.lock);
-  // } else if (!options.cwd) {
-  //   opts.args.push("--no-lock");
-  // }
+  if (typeof options.lock === "string") {
+    opts.args.push("--lock", options.lock);
+  } else if (!options.cwd) {
+    opts.args.push("--no-lock");
+  }
   if (options.nodeModulesDir) {
     opts.args.push("--node-modules-dir");
   }
@@ -190,4 +189,9 @@ export class InfoCache {
       await this.#load(specifier);
     }
   }
+}
+
+export interface Lockfile {
+  version: string;
+  packages?: { specifiers?: Record<string, string> };
 }

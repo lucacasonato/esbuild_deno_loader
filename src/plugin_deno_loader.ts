@@ -1,4 +1,4 @@
-import { esbuild, join } from "../deps.ts";
+import { dirname, esbuild, join } from "../deps.ts";
 import { NativeLoader } from "./loader_native.ts";
 import { PortableLoader } from "./loader_portable.ts";
 import {
@@ -8,6 +8,7 @@ import {
 import {
   esbuildResolutionToURL,
   Loader,
+  readDenoConfig,
   urlToEsbuildResolution,
 } from "./shared.ts";
 
@@ -46,18 +47,22 @@ export interface DenoLoaderPluginOptions {
    * sync with the `importMapURL` option for `denoResolverPlugin`.
    */
   importMapURL?: string;
-  // TODO(lucacasonato): https://github.com/denoland/deno/issues/18159
-  // /**
-  //  * Specify the path to a lock file to use. This is equivalent to the `--lock`
-  //  * flag to the Deno executable. This path must be absolute.
-  //  *
-  //  * If this option is not specified, the deno.json config file is consulted to
-  //  * determine what import map to use, if any.
-  //  *
-  //  * NOTE: when using `loader: "portable"`, lock checks are not performed for
-  //  * ESM modules.
-  //  */
-  // lockPath?: string;
+  /**
+   * Specify the path to a lock file to use. This is equivalent to the `--lock`
+   * flag to the Deno executable. This path must be absolute.
+   *
+   * If this option is not specified, the deno.json config file is consulted to
+   * determine what import map to use, if any.
+   *
+   * A lockfile must be present to resolve `jsr:` specifiers with the `portable`
+   * loader. When using the `native` loader, a lockfile is not required, but to
+   * ensure dependencies are de-duplicated correctly, it is recommended to use a
+   * lockfile.
+   *
+   * NOTE: when using `loader: "portable"`, integrity checks are not performed
+   * for ESM modules.
+   */
+  lockPath?: string;
   /**
    * Specify whether to generate and use a local `node_modules` directory when
    * using the `native` loader. This is equivalent to the `--node-modules-dir`
@@ -155,6 +160,10 @@ const BUILTIN_NODE_MODULES = new Set([
  * `node_modules` directory. NPM packages are resolved, downloaded, cached, and
  * loaded in the same way as the Deno executable does.
  *
+ * JSR specifiers can be used without restrictions in the native loader. To
+ * ensure dependencies are de-duplicated correctly, it is recommended to use a
+ * lockfile.
+ *
  * ### Portable Loader
  *
  * The portable loader does module downloading and caching with only Web APIs.
@@ -165,6 +174,8 @@ const BUILTIN_NODE_MODULES = new Set([
  * NPM specifiers can be used in the portable loader, but require a local
  * `node_modules` directory. The `node_modules` directory must be created prior
  * using Deno's `--node-modules-dir` flag.
+ *
+ * JSR specifiers require a lockfile to be present to resolve.
  */
 export function denoLoaderPlugin(
   options: DenoLoaderPluginOptions = {},
@@ -187,7 +198,7 @@ export function denoLoaderPlugin(
 
       const packageIdMapping = new Map<string, string>();
 
-      build.onStart(function onStart() {
+      build.onStart(async function onStart() {
         packageIdMapping.clear();
         switch (loader) {
           case "native":
@@ -196,14 +207,25 @@ export function denoLoaderPlugin(
                 cwd,
                 config: options.configPath,
                 importMap: options.importMapURL,
-                // TODO(lucacasonato): https://github.com/denoland/deno/issues/18159
-                // lock: options.lockPath,
+                lock: options.lockPath,
                 nodeModulesDir: options.nodeModulesDir,
               },
             });
             break;
-          case "portable":
-            loaderImpl = new PortableLoader();
+          case "portable": {
+            let lockPath: string | undefined = options.lockPath;
+            if (lockPath === undefined && options.configPath !== undefined) {
+              const config = await readDenoConfig(options.configPath);
+              if (typeof config.lock === "string") {
+                lockPath = join(dirname(options.configPath), config.lock);
+              } else if (config.lock !== false) {
+                lockPath = join(dirname(options.configPath), "deno.lock");
+              }
+            }
+            loaderImpl = new PortableLoader({
+              lock: lockPath,
+            });
+          }
         }
       });
 
@@ -351,6 +373,7 @@ export function denoLoaderPlugin(
       build.onResolve({ filter: /.*/, namespace: "https" }, onResolve);
       build.onResolve({ filter: /.*/, namespace: "data" }, onResolve);
       build.onResolve({ filter: /.*/, namespace: "npm" }, onResolve);
+      build.onResolve({ filter: /.*/, namespace: "jsr" }, onResolve);
       build.onResolve({ filter: /.*/, namespace: "node" }, onResolve);
 
       async function onLoad(
