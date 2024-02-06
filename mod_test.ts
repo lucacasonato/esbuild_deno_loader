@@ -674,6 +674,33 @@ Deno.test("bundle config ref import map", async (t) => {
   });
 });
 
+Deno.test("bundle config inline import map with expansion", async (t) => {
+  await testLoader(t, LOADERS, async (esbuild, loader) => {
+    const configPath = join(
+      Deno.cwd(),
+      "testdata",
+      "config_inline_expansion.json",
+    );
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [
+        ...denoPlugins({ configPath, loader }),
+      ],
+      bundle: true,
+      platform: "neutral",
+      entryPoints: ["./testdata/mapped_jsr.js"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const ns = await import(dataURL);
+    assertEquals(ns.join("a", "b"), join("a", "b"));
+  });
+});
+
 const COMPUTED_PLUGIN: esbuild.Plugin = {
   name: "computed",
   setup(build) {
