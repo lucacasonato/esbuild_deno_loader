@@ -1,4 +1,11 @@
-import { esbuild, extname, fromFileUrl, ImportMap, JSONC, toFileUrl } from "../deps.ts";
+import {
+  esbuild,
+  extname,
+  fromFileUrl,
+  ImportMap,
+  JSONC,
+  toFileUrl,
+} from "../deps.ts";
 import { MediaType } from "./deno.ts";
 
 export interface Loader {
@@ -325,7 +332,6 @@ export function parseJsrSpecifier(specifier: URL): JsrSpecifier {
     path: pathStartIndex === path.length ? null : path.slice(pathStartIndex),
   };
 }
-
 
 // For all pairs in `imports` where the specifier does not end in a /, and the
 // target starts with `jsr:` or `npm:`, and no entry exists for `${specifier}/`,
