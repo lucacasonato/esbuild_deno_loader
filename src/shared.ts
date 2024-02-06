@@ -1,12 +1,7 @@
-import {
-  esbuild,
-  extname,
-  fromFileUrl,
-  ImportMap,
-  JSONC,
-  SEPARATOR,
-  toFileUrl,
-} from "../deps.ts";
+import esbuild from "esbuild";
+import { extname, fromFileUrl, toFileUrl, SEPARATOR } from "@std/path";
+import * as JSONC from "@std/jsonc";
+import { ImportMap } from "x/importmap";
 import { MediaType } from "./deno.ts";
 
 export interface Loader {
@@ -61,11 +56,23 @@ export function mediaTypeToLoader(mediaType: MediaType): esbuild.Loader {
   }
 }
 
+/** Esbuild's representation of a module specifier. */
 export interface EsbuildResolution {
+  /** The namespace, like `file`, `https`, or `npm`. */
   namespace: string;
+  /** The path. When the namespace is `file`, this is a file path. Otherwise
+   * this is everything in a URL with the namespace as the scheme, after the
+   * `:` of the scheme. */
   path: string;
 }
 
+/**
+ * Turn a URL into an {@link EsbuildResolution} by splitting the URL into a
+ * namespace and path.
+ *
+ * For file URLs, the path returned is a file path not a URL path representing a
+ * file.
+ */
 export function urlToEsbuildResolution(url: URL): EsbuildResolution {
   if (url.protocol === "file:") {
     return { path: fromFileUrl(url), namespace: "file" };
@@ -76,6 +83,13 @@ export function urlToEsbuildResolution(url: URL): EsbuildResolution {
   return { path, namespace };
 }
 
+/**
+ * Turn an {@link EsbuildResolution} into a URL by joining the namespace and
+ * path into a URL string.
+ *
+ * For file URLs, the path is interpreted as a file path not as a URL path
+ * representing a file.
+ */
 export function esbuildResolutionToURL(specifier: EsbuildResolution): URL {
   if (specifier.namespace === "file") {
     return toFileUrl(specifier.path);

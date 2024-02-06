@@ -1,19 +1,10 @@
-import { esbuild } from "./deps.ts";
+import type esbuild from "esbuild";
 
 import {
   denoResolverPlugin,
   type DenoResolverPluginOptions,
-  type ImportMap,
-  type Scopes,
-  type SpecifierMap,
 } from "./src/plugin_deno_resolver.ts";
-export {
-  denoResolverPlugin,
-  DenoResolverPluginOptions,
-  ImportMap,
-  Scopes,
-  SpecifierMap,
-};
+export { denoResolverPlugin, DenoResolverPluginOptions };
 
 import {
   DEFAULT_LOADER,
@@ -28,6 +19,7 @@ export {
   urlToEsbuildResolution,
 } from "./src/shared.ts";
 
+/** Options for the {@link denoPlugins} function. */
 export interface DenoPluginsOptions {
   /**
    * Specify which loader to use. By default this will use the `native` loader,
@@ -75,6 +67,10 @@ export interface DenoPluginsOptions {
   nodeModulesDir?: boolean;
 }
 
+/**
+ * A convenience function to enable both the Deno resolver plugin, and Deno
+ * loader plugin.
+ */
 export function denoPlugins(opts: DenoPluginsOptions = {}): esbuild.Plugin[] {
   return [
     denoResolverPlugin(opts),

@@ -1,4 +1,5 @@
-import { dirname, esbuild, join } from "../deps.ts";
+import esbuild from "esbuild";
+import { dirname, join } from "@std/path";
 import { NativeLoader } from "./loader_native.ts";
 import { PortableLoader } from "./loader_portable.ts";
 import { isInNodeModules } from "./shared.ts";
@@ -10,6 +11,7 @@ import {
   urlToEsbuildResolution,
 } from "./shared.ts";
 
+/** Options for the {@link denoLoaderPlugin}. */
 export interface DenoLoaderPluginOptions {
   /**
    * Specify which loader to use. By default this will use the `native` loader,
@@ -75,7 +77,7 @@ export interface DenoLoaderPluginOptions {
 const LOADERS = ["native", "portable"] as const;
 
 /** The default loader to use. */
-export const DEFAULT_LOADER: typeof LOADERS[number] =
+export const DEFAULT_LOADER: "native" | "portable" =
   await Deno.permissions.query({ name: "run" })
       .then((res) => res.state !== "granted")
     ? "portable"

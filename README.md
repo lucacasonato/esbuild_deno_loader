@@ -14,12 +14,12 @@ Deno module resolution for `esbuild`.
 This example bundles an entrypoint into a single ESM output.
 
 ```js
-import * as esbuild from "https://deno.land/x/esbuild@v0.19.11/mod.js";
+import * as esbuild from "npm:esbuild@0.20";
 // Import the WASM build on platforms where running subprocesses is not
 // permitted, such as Deno Deploy, or when running without `--allow-run`.
-// import * as esbuild from "https://deno.land/x/esbuild@v0.19.11/wasm.js";
+// import * as esbuild from "npm:esbuild-wasm@0.20";
 
-import { denoPlugins } from "https://deno.land/x/esbuild_deno_loader@0.8.5/mod.ts";
+import { denoPlugins } from "jsr:@luca/esbuild_deno_loader@0.9";
 
 const result = await esbuild.build({
   plugins: [...denoPlugins()],
@@ -63,7 +63,7 @@ array of the esbuild build options.
 
 In depth documentation for each of the plugins, and the `denoPlugins()` function
 can be found in the
-[generated docs](https://deno.land/x/esbuild_deno_loader/mod.ts).
+[generated docs](https://jsr.io/@luca/esbuild_deno_loader/doc).
 
 ### Using with other plugins
 
