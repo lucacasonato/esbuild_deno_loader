@@ -1,0 +1,6 @@
+{
+  "lock": "./jsr/deno.lock",
+  "imports": {
+    "@std/path": "jsr:@std/path@^0.213"
+  }
+}

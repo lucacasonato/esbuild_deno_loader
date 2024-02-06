@@ -7,7 +7,11 @@ import {
   SpecifierMap,
   toFileUrl,
 } from "../deps.ts";
-import { readDenoConfig, urlToEsbuildResolution } from "./shared.ts";
+import {
+  expandEmbeddedImportMap,
+  readDenoConfig,
+  urlToEsbuildResolution,
+} from "./shared.ts";
 
 export type { ImportMap, Scopes, SpecifierMap };
 
@@ -76,6 +80,7 @@ export function denoResolverPlugin(
               imports: config.imports,
               scopes: config.scopes,
             } as ImportMap;
+            expandEmbeddedImportMap(configImportMap);
             importMap = resolveImportMap(
               configImportMap,
               toFileUrl(options.configPath),

@@ -1,4 +1,4 @@
-import { esbuild, extname, fromFileUrl, JSONC, toFileUrl } from "../deps.ts";
+import { esbuild, extname, fromFileUrl, ImportMap, JSONC, toFileUrl } from "../deps.ts";
 import { MediaType } from "./deno.ts";
 
 export interface Loader {
@@ -324,4 +324,29 @@ export function parseJsrSpecifier(specifier: URL): JsrSpecifier {
       : path.slice(versionStartIndex + 1, pathStartIndex),
     path: pathStartIndex === path.length ? null : path.slice(pathStartIndex),
   };
+}
+
+
+// For all pairs in `imports` where the specifier does not end in a /, and the
+// target starts with `jsr:` or `npm:`, and no entry exists for `${specifier}/`,
+// add an entry for `${specifier}/` pointing to the target with a / appended,
+// and a `/` appended to the scheme, if none is present there.
+export function expandEmbeddedImportMap(importMap: ImportMap) {
+  if (importMap.imports !== undefined) {
+    const newImports: [string, string | null][] = [];
+    for (const [specifier, target] of Object.entries(importMap.imports)) {
+      newImports.push([specifier, target]);
+      if (
+        !specifier.endsWith("/") && target &&
+        (target.startsWith("jsr:") || target.startsWith("npm:")) &&
+        !importMap.imports[specifier + "/"]
+      ) {
+        const newSpecifier = specifier + "/";
+        const newTarget = target.slice(0, 4) + "/" +
+          target.slice(target[4] === "/" ? 5 : 4) + "/";
+        newImports.push([newSpecifier, newTarget]);
+      }
+    }
+    importMap.imports = Object.fromEntries(newImports);
+  }
 }
