@@ -54,10 +54,10 @@ export interface DenoPluginsOptions {
   /**
    * Specify the path to a deno.lock file to use. This is equivalent to the
    * `--lock` flag to the Deno executable. This path must be absolute.
-   * 
+   *
    * If this option is not specified, the deno.json config file is consulted to
    * determine what lock file to use, if any.
-   * 
+   *
    * A lockfile must be present to resolve `jsr:` specifiers with the `portable`
    * loader. When using the `native` loader, a lockfile is not required, but to
    * ensure dependencies are de-duplicated correctly, it is recommended to use a
