@@ -781,3 +781,79 @@ Deno.test("externals", async (t) => {
     assertStringIncludes(output.text, "foo:baz/bar");
   });
 });
+
+Deno.test("jsr specifiers - auto discovered lock file", async (t) => {
+  await testLoader(t, LOADERS, async (esbuild, loader) => {
+    const configPath = join(Deno.cwd(), "testdata", "jsr", "deno.json");
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader, configPath })],
+      bundle: true,
+      platform: "neutral",
+      entryPoints: ["jsr:@std/path@^0.213"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertStringIncludes(
+      output.text,
+      "https://jsr.io/@std/path/0.213.1/mod.ts",
+    );
+    const ns = await import(
+      `data:application/javascript;base64,${btoa(output.text)}`
+    );
+    assertEquals(ns.join("a", "b"), join("a", "b"));
+  });
+});
+
+Deno.test("jsr specifiers - lock file referenced in deno.json", async (t) => {
+  await testLoader(t, LOADERS, async (esbuild, loader) => {
+    const configPath = join(Deno.cwd(), "testdata", "jsr_deno.json");
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader, configPath })],
+      bundle: true,
+      platform: "neutral",
+      entryPoints: ["jsr:@std/path@^0.213"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertStringIncludes(
+      output.text,
+      "https://jsr.io/@std/path/0.213.1/mod.ts",
+    );
+    const ns = await import(
+      `data:application/javascript;base64,${btoa(output.text)}`
+    );
+    assertEquals(ns.join("a", "b"), join("a", "b"));
+  });
+});
+
+Deno.test("jsr specifiers - no lockfile", async (t) => {
+  await testLoader(t, ["native"], async (esbuild, loader) => {
+    const tmp = Deno.makeTempDirSync();
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader })],
+      bundle: true,
+      platform: "neutral",
+      entryPoints: ["jsr:@std/path@0.213.1"],
+      absWorkingDir: tmp,
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertStringIncludes(
+      output.text,
+      "https://jsr.io/@std/path/0.213.1/mod.ts",
+    );
+    const ns = await import(
+      `data:application/javascript;base64,${btoa(output.text)}`
+    );
+    assertEquals(ns.join("a", "b"), join("a", "b"));
+  });
+});

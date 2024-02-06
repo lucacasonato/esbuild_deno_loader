@@ -5,6 +5,7 @@ import {
   LoaderResolution,
   mapContentType,
   mediaTypeToLoader,
+  parseJsrSpecifier,
   parseNpmSpecifier,
 } from "./shared.ts";
 
@@ -14,11 +15,35 @@ interface Module {
   data: Uint8Array;
 }
 
+const JSR_REGISTRY_URL = Deno.env.get("DENO_REGISTRY_URL") ?? "https://jsr.io";
+
+async function readLockfile(path: string): Promise<deno.Lockfile | null> {
+  try {
+    const data = await Deno.readTextFile(path);
+    return JSON.parse(data);
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) {
+      return null;
+    }
+    throw err;
+  }
+}
+
+interface PortableLoaderOptions {
+  lock?: string;
+}
+
 export class PortableLoader implements Loader {
+  #options: PortableLoaderOptions;
   #fetchOngoing = new Map<string, Promise<void>>();
+  #lockfile: Promise<deno.Lockfile | null> | deno.Lockfile | null | undefined;
 
   #fetchModules = new Map<string, Module>();
   #fetchRedirects = new Map<string, string>();
+
+  constructor(options: PortableLoaderOptions) {
+    this.#options = options;
+  }
 
   async resolve(specifier: URL): Promise<LoaderResolution> {
     switch (specifier.protocol) {
@@ -43,9 +68,80 @@ export class PortableLoader implements Loader {
       case "node:": {
         return { kind: "node", path: specifier.pathname };
       }
+      case "jsr:": {
+        const resolvedSpecifier = await this.#resolveJsrSpecifier(specifier);
+        return { kind: "esm", specifier: resolvedSpecifier };
+      }
       default:
         throw new Error(`Unsupported scheme: '${specifier.protocol}'`);
     }
+  }
+
+  async #resolveJsrSpecifier(specifier: URL): Promise<URL> {
+    // parse the JSR specifier.
+    const jsrSpecifier = parseJsrSpecifier(specifier);
+
+    // Attempt to load the lockfile.
+    if (this.#lockfile === undefined) {
+      this.#lockfile = typeof this.#options.lock === "string"
+        ? readLockfile(this.#options.lock)
+        : null;
+    }
+    if (this.#lockfile instanceof Promise) {
+      this.#lockfile = await this.#lockfile;
+    }
+    if (this.#lockfile === null) {
+      throw new Error(
+        "jsr: specifiers are not supported in the portable loader without a lockfile",
+      );
+    }
+    const lockfile = this.#lockfile;
+    if (lockfile.version !== "3") {
+      throw new Error(
+        "Unsupported lockfile version: " + lockfile.version,
+      );
+    }
+
+    // Look up the package + constraint in the lockfile.
+    const id = `jsr:${jsrSpecifier.name}${
+      jsrSpecifier.version ? `@${jsrSpecifier.version}` : ""
+    }`;
+    const lockfileEntry = lockfile.packages?.specifiers?.[id];
+    if (!lockfileEntry) {
+      throw new Error(`Specifier not found in lockfile: ${id}`);
+    }
+    const lockfileEntryParsed = parseJsrSpecifier(new URL(lockfileEntry));
+
+    // Load the JSR manifest to find the export path.
+    const manifestUrl = new URL(
+      `./${lockfileEntryParsed.name}/${lockfileEntryParsed
+        .version!}_meta.json`,
+      JSR_REGISTRY_URL,
+    );
+    const manifest = await this.#loadRemote(manifestUrl.href);
+    if (manifest.mediaType !== "Json") {
+      throw new Error(
+        `Expected JSON media type for JSR manifest, got: ${manifest.mediaType}`,
+      );
+    }
+    const manifestData = new TextDecoder().decode(manifest.data);
+    const manifestJson = JSON.parse(manifestData);
+
+    // Look up the export path in the manifest.
+    const exportEntry = `.${jsrSpecifier.path ?? ""}`;
+    const exportPath = manifestJson.exports[exportEntry];
+    if (!exportPath) {
+      throw new Error(
+        `Package '${lockfileEntry}' has no export named '${exportEntry}'`,
+      );
+    }
+
+    // Return the resolved URL.
+    return new URL(
+      `./${lockfileEntryParsed.name}/${lockfileEntryParsed
+        .version!}/${exportPath}`,
+      JSR_REGISTRY_URL,
+    );
   }
 
   async loadEsm(url: URL): Promise<esbuild.OnLoadResult> {
