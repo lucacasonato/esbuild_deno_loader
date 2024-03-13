@@ -381,7 +381,7 @@ export function denoLoaderPlugin(
       ): Promise<esbuild.OnLoadResult | null> {
         if (args.namespace === "file" && args.pluginData === IN_NODE_MODULES) {
           if (args.path.endsWith(".json")) {
-            const contents = await Deno.readTextFile(args.path);
+            const contents = await Deno.readFile(args.path);
             return { loader: "json", contents };
           }
           const path = args.path.endsWith(".js") ? args.path : `${args.path}.js`;
