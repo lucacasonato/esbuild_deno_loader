@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         # Test on the latest stable, and nightly
-        deno: [v1.x, canary]
+        deno: [1.x, nightly]
         os: [macOS-latest, windows-latest, ubuntu-latest]
 
     steps:
@@ -24,7 +24,9 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@main
         with:
-          deno-version: ${{ matrix.deno }}
+          # TODO: revert back to ${{ matrix.deno }} once https://github.com/denoland/deno/issues/22926 is fixed
+          # deno-version: ${{ matrix.deno }}
+          deno-version: v1.40.3
 
       - run: deno --version
 

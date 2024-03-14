@@ -223,7 +223,7 @@ export class InfoCache {
       this.#options,
     );
     for (const module of modules) {
-      if (specifier.length > 1 && module.specifier === specifier) continue;
+      if (specifiers.length !== 1 && module.specifier === specifier) continue;
       this.#modules.set(module.specifier, module);
     }
     for (const [from, to] of Object.entries(redirects)) {
