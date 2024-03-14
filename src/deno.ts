@@ -131,6 +131,9 @@ async function info(
 export class InfoCache {
   #options: InfoOptions;
 
+  #pending: { done: Promise<void>; specifiers: Set<string> | null } | null =
+    null;
+
   #modules: Map<string, ModuleEntry> = new Map();
   #redirects: Map<string, string> = new Map();
   #npmPackages: Map<string, NpmPackage> = new Map();
@@ -143,7 +146,7 @@ export class InfoCache {
     let entry = this.#getCached(specifier);
     if (entry !== undefined) return entry;
 
-    await this.#load(specifier);
+    await this.#queueLoad(specifier);
 
     entry = this.#getCached(specifier);
     if (entry === undefined) {
@@ -166,12 +169,61 @@ export class InfoCache {
     return this.#modules.get(specifier);
   }
 
-  async #load(specifier: string): Promise<void> {
+  async #queueLoad(specifier: string) {
+    while (true) {
+      if (this.#pending === null) {
+        this.#pending = {
+          specifiers: new Set([specifier]),
+          done: (async () => {
+            await new Promise((r) => setTimeout(r, 5));
+            const specifiers = this.#pending!.specifiers!;
+            this.#pending!.specifiers = null;
+            await this.#load([...specifiers]);
+            this.#pending = null;
+          })(),
+        };
+        await this.#pending.done;
+        return;
+      } else if (this.#pending.specifiers !== null) {
+        this.#pending.specifiers.add(specifier);
+        await this.#pending.done;
+        return;
+      } else {
+        await this.#pending.done;
+      }
+    }
+  }
+
+  async #load(specifiers: string[]): Promise<void> {
+    await this.#populate(specifiers);
+    for (let specifier of specifiers) {
+      specifier = this.#resolve(specifier);
+      const entry = this.#modules.get(specifier);
+      if (entry === undefined && specifier.startsWith("npm:")) {
+        // we hit https://github.com/denoland/deno/issues/18043, so we have to
+        // perform another load to get the actual data of the redirected specifier
+        await this.#populate([specifier]);
+      }
+    }
+  }
+
+  async #populate(specifiers: string[]) {
+    let specifier;
+    if (specifiers.length === 1) {
+      specifier = specifiers[0];
+    } else {
+      specifier = `data:application/javascript,${
+        encodeURIComponent(
+          specifiers.map((s) => `import ${JSON.stringify(s)};`).join(""),
+        )
+      }`;
+    }
     const { modules, redirects, npmPackages } = await info(
       specifier,
       this.#options,
     );
     for (const module of modules) {
+      if (specifier.length > 1 && module.specifier === specifier) continue;
       this.#modules.set(module.specifier, module);
     }
     for (const [from, to] of Object.entries(redirects)) {
@@ -179,14 +231,6 @@ export class InfoCache {
     }
     for (const [id, npmPackage] of Object.entries(npmPackages)) {
       this.#npmPackages.set(id, npmPackage);
-    }
-
-    specifier = this.#resolve(specifier);
-    const entry = this.#modules.get(specifier);
-    if (entry === undefined && specifier.startsWith("npm:")) {
-      // we hit https://github.com/denoland/deno/issues/18043, so we have to
-      // perform another load to get the actual data of the redirected specifier
-      await this.#load(specifier);
     }
   }
 }
