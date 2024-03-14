@@ -154,7 +154,7 @@ export class NativeLoader implements Loader {
   packageIdFromNameInPackage(
     name: string,
     parentPackageId: string,
-  ): string {
+  ): string | null {
     const parentPackage = this.#infoCache.getNpmPackage(parentPackageId);
     if (!parentPackage) throw new Error("NPM package not found.");
     if (parentPackage.name === name) return parentPackageId;
@@ -163,7 +163,7 @@ export class NativeLoader implements Loader {
       if (!depPackage) throw new Error("NPM package not found.");
       if (depPackage.name === name) return dep;
     }
-    throw new Error("NPM package not found.");
+    return null;
   }
 }
 

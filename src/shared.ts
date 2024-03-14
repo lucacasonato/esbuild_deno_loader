@@ -12,7 +12,10 @@ export interface Loader {
   resolve(specifier: URL): Promise<LoaderResolution>;
   loadEsm(specifier: URL): Promise<esbuild.OnLoadResult>;
 
-  packageIdFromNameInPackage?(name: string, parentPackageId: string): string;
+  packageIdFromNameInPackage?(
+    name: string,
+    parentPackageId: string,
+  ): string | null;
   nodeModulesDirForPackage?(npmPackageId?: string): Promise<string>;
 }
 
@@ -355,4 +358,16 @@ export function expandEmbeddedImportMap(importMap: ImportMap) {
     }
     importMap.imports = Object.fromEntries(newImports);
   }
+}
+
+export function isInNodeModules(path: string): boolean {
+  return path.includes("/node_modules/") || path.endsWith("/node_modules");
+}
+
+export function isNodeModulesResolution(args: esbuild.OnResolveArgs) {
+  return (
+    (args.namespace === "" || args.namespace === "file") &&
+    (isInNodeModules(args.resolveDir) || isInNodeModules(args.path) ||
+      isInNodeModules(args.importer))
+  );
 }

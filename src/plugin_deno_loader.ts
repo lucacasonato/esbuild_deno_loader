@@ -1,12 +1,10 @@
 import { dirname, esbuild, join } from "../deps.ts";
 import { NativeLoader } from "./loader_native.ts";
 import { PortableLoader } from "./loader_portable.ts";
-import {
-  IN_NODE_MODULES,
-  IN_NODE_MODULES_RESOLVED,
-} from "./plugin_deno_resolver.ts";
+import { isInNodeModules } from "./shared.ts";
 import {
   esbuildResolutionToURL,
+  isNodeModulesResolution,
   Loader,
   readDenoConfig,
   urlToEsbuildResolution,
@@ -196,10 +194,10 @@ export function denoLoaderPlugin(
 
       let loaderImpl: Loader;
 
-      const packageIdMapping = new Map<string, string>();
+      const packageIdByNodeModules = new Map<string, string>();
 
       build.onStart(async function onStart() {
-        packageIdMapping.clear();
+        packageIdByNodeModules.clear();
         switch (loader) {
           case "native":
             loaderImpl = new NativeLoader({
@@ -229,30 +227,10 @@ export function denoLoaderPlugin(
         }
       });
 
-      async function resolveInNodeModules(
-        path: string,
-        packageId: string,
-        kind: esbuild.ImportKind,
-        resolveDir: string,
-        importer: string,
-        namespace: string,
-      ): Promise<esbuild.OnResolveResult> {
-        const result = await build.resolve(path, {
-          kind,
-          resolveDir,
-          importer,
-          namespace,
-          pluginData: IN_NODE_MODULES_RESOLVED,
-        });
-        result.pluginData = IN_NODE_MODULES;
-        packageIdMapping.set(result.path, packageId);
-        return result;
-      }
-
       async function onResolve(
         args: esbuild.OnResolveArgs,
       ): Promise<esbuild.OnResolveResult | null | undefined> {
-        if (args.namespace === "file" && args.pluginData === IN_NODE_MODULES) {
+        if (isNodeModulesResolution(args)) {
           if (
             BUILTIN_NODE_MODULES.has(args.path) ||
             BUILTIN_NODE_MODULES.has("node:" + args.path)
@@ -263,34 +241,30 @@ export function denoLoaderPlugin(
             };
           }
           if (nodeModulesDir) {
-            const result = await build.resolve(args.path, {
-              kind: args.kind,
-              resolveDir: args.resolveDir,
-              importer: args.importer,
-              namespace: args.namespace,
-              pluginData: IN_NODE_MODULES_RESOLVED,
-            });
-            result.pluginData = IN_NODE_MODULES;
-            return result;
+            return undefined;
           } else if (
             loaderImpl.nodeModulesDirForPackage &&
             loaderImpl.packageIdFromNameInPackage
           ) {
-            const parentPackageId = packageIdMapping.get(args.importer);
+            let parentPackageId: string | undefined;
+            let path = args.importer;
+            while (true) {
+              const packageId = packageIdByNodeModules.get(path);
+              if (packageId) {
+                parentPackageId = packageId;
+                break;
+              }
+              const pathBefore = path;
+              path = dirname(path);
+              if (path === pathBefore) break;
+            }
             if (!parentPackageId) {
               throw new Error(
                 `Could not find package ID for importer: ${args.importer}`,
               );
             }
             if (args.path.startsWith(".")) {
-              return resolveInNodeModules(
-                args.path,
-                parentPackageId,
-                args.kind,
-                args.resolveDir,
-                args.importer,
-                args.namespace,
-              );
+              return undefined;
             } else {
               let packageName: string;
               let pathParts: string[];
@@ -307,18 +281,15 @@ export function denoLoaderPlugin(
                 packageName,
                 parentPackageId,
               );
-              const resolveDir = await loaderImpl.nodeModulesDirForPackage(
-                packageId,
-              );
+              const id = packageId ?? parentPackageId;
+              const resolveDir = await loaderImpl.nodeModulesDirForPackage(id);
+              packageIdByNodeModules.set(resolveDir, id);
               const path = [packageName, ...pathParts].join("/");
-              return resolveInNodeModules(
-                path,
-                packageId,
-                args.kind,
+              return await build.resolve(path, {
+                kind: args.kind,
                 resolveDir,
-                args.importer,
-                args.namespace,
-              );
+                importer: args.importer,
+              });
             }
           } else {
             throw new Error(
@@ -345,20 +316,18 @@ export function denoLoaderPlugin(
               resolveDir = await loaderImpl.nodeModulesDirForPackage(
                 res.packageId,
               );
+              packageIdByNodeModules.set(resolveDir, res.packageId);
             } else {
               throw new Error(
                 `To use "npm:" specifiers, you must specify "nodeModulesDir: true", or use "loader: native".`,
               );
             }
             const path = `${res.packageName}${res.path ?? ""}`;
-            return resolveInNodeModules(
-              path,
-              res.packageId,
-              args.kind,
+            return await build.resolve(path, {
+              kind: args.kind,
               resolveDir,
-              args.importer,
-              args.namespace,
-            );
+              importer: args.importer,
+            });
           }
           case "node": {
             return {
@@ -378,10 +347,10 @@ export function denoLoaderPlugin(
 
       async function onLoad(
         args: esbuild.OnLoadArgs,
-      ): Promise<esbuild.OnLoadResult | null> {
-        if (args.namespace === "file" && args.pluginData === IN_NODE_MODULES) {
-          const contents = await Deno.readFile(args.path);
-          return { loader: "js", contents };
+      ): Promise<esbuild.OnLoadResult | null> | undefined {
+        if (args.namespace === "file" && isInNodeModules(args.path)) {
+          // inside node_modules, just let esbuild do it's thing
+          return undefined;
         }
         const specifier = esbuildResolutionToURL(args);
         return loaderImpl.loadEsm(specifier);

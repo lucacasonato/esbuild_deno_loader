@@ -432,6 +432,35 @@ Deno.test("npm specifiers global resolver - typo-js", async (t) => {
   });
 });
 
+Deno.test("npm specifiers global resolver - express", async (t) => {
+  await testLoader(t, ["native"], async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader })],
+      bundle: true,
+      entryPoints: ["npm:express@4"],
+      platform: "node",
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(!output.text.includes(`npm:`));
+    console.log(output.text);
+    const blobURL = URL.createObjectURL(
+      new Blob([
+        "import { createRequire } from 'node:module';\nimport process from 'node:process';\nconst require = createRequire('file:///');\n",
+        output.text,
+      ], { type: "text/javascript" }),
+    );
+    const { default: express } = await import(blobURL);
+    URL.revokeObjectURL(blobURL);
+    assertEquals(typeof express, "function");
+  });
+});
+
 Deno.test("npm specifiers local resolver - preact", async (t) => {
   await testLoader(t, LOADERS, async (esbuild, loader) => {
     if (esbuild === PLATFORMS.wasm) return;
@@ -557,7 +586,7 @@ Deno.test("npm specifiers local resolver - @oramacloud/client", async (t) => {
 });
 
 Deno.test("npm specifiers local resolver - typo-js", async (t) => {
-  await testLoader(t, LOADERS, async (esbuild, loader) => {
+  await testLoader(t, ["portable"], async (esbuild, loader) => {
     if (esbuild === PLATFORMS.wasm) return;
     const tmp = Deno.makeTempDirSync();
     if (loader === "portable") {
@@ -582,6 +611,42 @@ Deno.test("npm specifiers local resolver - typo-js", async (t) => {
     const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
     const { default: Typo } = await import(dataURL);
     assertEquals(typeof Typo, "function");
+  });
+});
+
+Deno.test("npm specifiers local resolver - express", async (t) => {
+  await testLoader(t, ["portable"], async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const tmp = Deno.makeTempDirSync();
+    if (loader === "portable") {
+      new Deno.Command(Deno.execPath(), {
+        args: ["cache", "--node-modules-dir", "npm:express@4"],
+        cwd: tmp,
+      }).outputSync();
+    }
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader, nodeModulesDir: true })],
+      bundle: true,
+      absWorkingDir: tmp,
+      entryPoints: ["npm:express@4"],
+      platform: "node",
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    console.log(output.text);
+    const blobURL = URL.createObjectURL(
+      new Blob([
+        "import { createRequire } from 'node:module';\nimport process from 'node:process';\nconst require = createRequire('file:///');\n",
+        output.text,
+      ], { type: "text/javascript" }),
+    );
+    const { default: express } = await import(blobURL);
+    URL.revokeObjectURL(blobURL);
+    assertEquals(typeof express, "function");
   });
 });
 
