@@ -13,8 +13,8 @@ jobs:
 
     strategy:
       matrix:
-        # Test on the latest stable, and nightly
-        deno: [1.x, nightly]
+        # Test on the latest stable, and canary
+        deno: [1.x, canary]
         os: [macOS-latest, windows-latest, ubuntu-latest]
 
     steps:
