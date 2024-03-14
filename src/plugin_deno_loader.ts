@@ -345,7 +345,7 @@ export function denoLoaderPlugin(
       build.onResolve({ filter: /.*/, namespace: "jsr" }, onResolve);
       build.onResolve({ filter: /.*/, namespace: "node" }, onResolve);
 
-      async function onLoad(
+      function onLoad(
         args: esbuild.OnLoadArgs,
       ): Promise<esbuild.OnLoadResult | null> | undefined {
         if (args.namespace === "file" && isInNodeModules(args.path)) {
