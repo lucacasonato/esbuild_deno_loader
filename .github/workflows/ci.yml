@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         # Test on the latest stable, and canary
-        deno: [1.x, canary]
+        deno: [v1.x, canary]
         os: [macOS-latest, windows-latest, ubuntu-latest]
 
     steps:
