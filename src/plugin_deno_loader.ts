@@ -376,17 +376,12 @@ export function denoLoaderPlugin(
       build.onResolve({ filter: /.*/, namespace: "jsr" }, onResolve);
       build.onResolve({ filter: /.*/, namespace: "node" }, onResolve);
 
-      async function onLoad(
+      function onLoad(
         args: esbuild.OnLoadArgs,
-      ): Promise<esbuild.OnLoadResult | null> {
+      ): Promise<esbuild.OnLoadResult | null> | undefined {
         if (args.namespace === "file" && args.pluginData === IN_NODE_MODULES) {
-          if (args.path.endsWith(".json")) {
-            const contents = await Deno.readFile(args.path);
-            return { loader: "json", contents };
-          }
-          const path = args.path.endsWith(".js") ? args.path : `${args.path}.js`;
-          const contents = await Deno.readFile(path);
-          return { loader: "js", contents };
+          // inside node_modules, just let esbuild do it's thing
+          return undefined;
         }
         const specifier = esbuildResolutionToURL(args);
         return loaderImpl.loadEsm(specifier);
