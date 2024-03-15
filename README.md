@@ -1,4 +1,4 @@
-# esbuild_deno_loader
+# esbuild-deno-loader
 
 Deno module resolution for `esbuild`.
 
@@ -19,7 +19,7 @@ import * as esbuild from "npm:esbuild@0.20";
 // permitted, such as Deno Deploy, or when running without `--allow-run`.
 // import * as esbuild from "npm:esbuild-wasm@0.20";
 
-import { denoPlugins } from "jsr:@luca/esbuild_deno_loader@0.9";
+import { denoPlugins } from "jsr:@luca/esbuild-deno-loader@0.9";
 
 const result = await esbuild.build({
   plugins: [...denoPlugins()],
@@ -63,7 +63,7 @@ array of the esbuild build options.
 
 In depth documentation for each of the plugins, and the `denoPlugins()` function
 can be found in the
-[generated docs](https://jsr.io/@luca/esbuild_deno_loader/doc).
+[generated docs](https://jsr.io/@luca/esbuild-deno-loader/doc).
 
 ### Using with other plugins
 
