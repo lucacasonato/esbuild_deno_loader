@@ -1,4 +1,4 @@
-import esbuild from "esbuild";
+import type * as esbuild from "./esbuild_types.ts";
 import { toFileUrl } from "@std/path";
 import {
   ImportMap,

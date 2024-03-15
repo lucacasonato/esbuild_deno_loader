@@ -1,4 +1,4 @@
-import esbuild from "esbuild";
+import type * as esbuild from "./esbuild_types.ts";
 import { dirname, fromFileUrl, join } from "@std/path";
 import { encodeBase32 } from "@std/encoding/base32";
 import * as deno from "./deno.ts";

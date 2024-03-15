@@ -1,7 +1,10 @@
 {
   "name": "@luca/esbuild-deno-loader",
   "version": "0.10.2",
-  "exports": "./mod.ts",
+  "exports": {
+    ".": "./mod.ts",
+    "./esbuild_types": "./src/esbuild_types.ts"
+  },
   "imports": {
     "@std/assert": "jsr:@std/assert@0.213",
     "@std/encoding/base32": "jsr:@std/encoding@0.213/base32",
@@ -9,8 +12,6 @@
     "@std/fs": "jsr:@std/fs@0.213",
     "@std/jsonc": "jsr:@std/jsonc@0.213",
     "@std/path": "jsr:@std/path@0.213",
-    "esbuild-wasm": "npm:esbuild-wasm@0.20.0",
-    "esbuild": "npm:esbuild@0.20.0",
     "x/importmap": "./vendor/x/importmap/mod.ts",
     "x/importmap/_util.ts": "./vendor/x/importmap/_util.ts"
   },
