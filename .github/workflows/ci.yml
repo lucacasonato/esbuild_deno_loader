@@ -24,9 +24,8 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@main
         with:
-          # TODO: revert back to ${{ matrix.deno }} once https://github.com/denoland/deno/issues/22926 is fixed
-          # deno-version: ${{ matrix.deno }}
-          deno-version: v1.40.3
+          # TODO: revert back to actually using latest stable once https://github.com/denoland/deno/issues/22926 is released
+          deno-version: ${{ matrix.deno == 'v1.x' && 'v1.40.3' || matrix.deno}}
 
       - run: deno --version
 
