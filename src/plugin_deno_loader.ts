@@ -1,4 +1,4 @@
-import esbuild from "esbuild";
+import type * as esbuild from "./esbuild_types.ts";
 import { dirname, join } from "@std/path";
 import { NativeLoader } from "./loader_native.ts";
 import { PortableLoader } from "./loader_portable.ts";
@@ -231,7 +231,7 @@ export function denoLoaderPlugin(
 
       async function onResolve(
         args: esbuild.OnResolveArgs,
-      ): Promise<esbuild.OnResolveResult | null | undefined> {
+      ): Promise<esbuild.OnResolveResult | undefined> {
         if (isNodeModulesResolution(args)) {
           if (
             BUILTIN_NODE_MODULES.has(args.path) ||

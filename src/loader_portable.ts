@@ -1,4 +1,4 @@
-import esbuild from "esbuild";
+import type * as esbuild from "./esbuild_types.ts";
 import { fromFileUrl } from "@std/path";
 import * as deno from "./deno.ts";
 import {

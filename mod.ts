@@ -1,4 +1,4 @@
-import type esbuild from "esbuild";
+import type * as esbuild from "./src/esbuild_types.ts";
 
 import {
   denoResolverPlugin,

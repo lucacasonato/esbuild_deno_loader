@@ -1,8 +1,8 @@
-import esbuild from "esbuild";
 import { extname, fromFileUrl, SEPARATOR, toFileUrl } from "@std/path";
 import * as JSONC from "@std/jsonc";
 import { ImportMap } from "x/importmap";
 import { MediaType } from "./deno.ts";
+import type * as esbuild from "./esbuild_types.ts";
 
 export interface Loader {
   resolve(specifier: URL): Promise<LoaderResolution>;

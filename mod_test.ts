@@ -1,6 +1,5 @@
-import type esbuild from "esbuild";
-import esbuildNative from "esbuild";
-import esbuildWasm from "esbuild-wasm";
+import esbuildNative from "https://deno.land/x/esbuild@v0.20.2/mod.js";
+import esbuildWasm from "https://deno.land/x/esbuild@v0.20.2/wasm.js";
 import { join } from "@std/path";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
@@ -767,7 +766,7 @@ Deno.test("bundle config inline import map with expansion", async (t) => {
   });
 });
 
-const COMPUTED_PLUGIN: esbuild.Plugin = {
+const COMPUTED_PLUGIN: esbuildNative.Plugin = {
   name: "computed",
   setup(build) {
     build.onResolve({ filter: /.*/, namespace: "computed" }, (args) => {
