@@ -138,12 +138,10 @@ export class NativeLoader implements Loader {
       await Deno.mkdir(linkDirParent, { recursive: true });
       await Deno.rename(tmpDir, linkDir);
     } catch (err) {
-      if (
-        err instanceof Deno.errors.AlreadyExists ||
-        err.code === "ENOTEMPTY"
-      ) {
-        // ignore, someone else created the directory already
-      } else {
+      // the directory may already have been created by someone else - check if so
+      try {
+        await Deno.stat(linkDir);
+      } catch {
         throw err;
       }
     }
@@ -154,7 +152,7 @@ export class NativeLoader implements Loader {
   packageIdFromNameInPackage(
     name: string,
     parentPackageId: string,
-  ): string {
+  ): string | null {
     const parentPackage = this.#infoCache.getNpmPackage(parentPackageId);
     if (!parentPackage) throw new Error("NPM package not found.");
     if (parentPackage.name === name) return parentPackageId;
@@ -163,7 +161,7 @@ export class NativeLoader implements Loader {
       if (!depPackage) throw new Error("NPM package not found.");
       if (depPackage.name === name) return dep;
     }
-    throw new Error("NPM package not found.");
+    return null;
   }
 }
 

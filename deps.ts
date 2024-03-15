@@ -5,6 +5,7 @@ export {
   fromFileUrl,
   join,
   resolve,
+  SEPARATOR,
   toFileUrl,
 } from "https://deno.land/std@0.213.0/path/mod.ts";
 export { copy } from "https://deno.land/std@0.213.0/fs/mod.ts";

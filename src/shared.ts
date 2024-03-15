@@ -4,6 +4,7 @@ import {
   fromFileUrl,
   ImportMap,
   JSONC,
+  SEPARATOR,
   toFileUrl,
 } from "../deps.ts";
 import { MediaType } from "./deno.ts";
@@ -12,7 +13,10 @@ export interface Loader {
   resolve(specifier: URL): Promise<LoaderResolution>;
   loadEsm(specifier: URL): Promise<esbuild.OnLoadResult>;
 
-  packageIdFromNameInPackage?(name: string, parentPackageId: string): string;
+  packageIdFromNameInPackage?(
+    name: string,
+    parentPackageId: string,
+  ): string | null;
   nodeModulesDirForPackage?(npmPackageId?: string): Promise<string>;
 }
 
@@ -355,4 +359,20 @@ export function expandEmbeddedImportMap(importMap: ImportMap) {
     }
     importMap.imports = Object.fromEntries(newImports);
   }
+}
+
+const SLASH_NODE_MODULES_SLASH = `${SEPARATOR}node_modules${SEPARATOR}`;
+const SLASH_NODE_MODULES = `${SEPARATOR}node_modules`;
+
+export function isInNodeModules(path: string): boolean {
+  return path.includes(SLASH_NODE_MODULES_SLASH) ||
+    path.endsWith(SLASH_NODE_MODULES);
+}
+
+export function isNodeModulesResolution(args: esbuild.OnResolveArgs) {
+  return (
+    (args.namespace === "" || args.namespace === "file") &&
+    (isInNodeModules(args.resolveDir) || isInNodeModules(args.path) ||
+      isInNodeModules(args.importer))
+  );
 }

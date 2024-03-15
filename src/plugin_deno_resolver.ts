@@ -9,6 +9,7 @@ import {
 } from "../deps.ts";
 import {
   expandEmbeddedImportMap,
+  isNodeModulesResolution,
   readDenoConfig,
   urlToEsbuildResolution,
 } from "./shared.ts";
@@ -32,9 +33,6 @@ export interface DenoResolverPluginOptions {
   importMapURL?: string;
 }
 
-export const IN_NODE_MODULES = Symbol("IN_NODE_MODULES");
-export const IN_NODE_MODULES_RESOLVED = Symbol("IN_NODE_MODULES_RESOLVED");
-
 /**
  * The Deno resolver plugin performs relative->absolute specifier resolution
  * and import map resolution.
@@ -49,7 +47,6 @@ export function denoResolverPlugin(
     name: "deno-resolver",
     setup(build) {
       let importMap: ImportMap | null = null;
-      let nodeModulesPaths: Set<string>;
 
       const externalRegexps: RegExp[] = (build.initialOptions.external ?? [])
         .map((external) => {
@@ -63,8 +60,6 @@ export function denoResolverPlugin(
         });
 
       build.onStart(async function onStart() {
-        nodeModulesPaths = new Set<string>();
-
         let importMapURL: string | undefined;
 
         // If no import map URL is specified, and a config is specified, we try
@@ -103,22 +98,9 @@ export function denoResolverPlugin(
       });
 
       build.onResolve({ filter: /.*/ }, async function onResolve(args) {
-        // If this is a node_modules internal resolution, just pass it through.
-        // Internal resolution is detected by either the "IN_NODE_MODULES" flag
-        // being set on the resolve args through the pluginData field, or by
-        // the importer being in the nodeModulesPaths set.
-        if (args.pluginData === IN_NODE_MODULES_RESOLVED) return {};
-        if (args.pluginData === IN_NODE_MODULES) return undefined;
-        if (nodeModulesPaths.has(args.importer)) {
-          const res = await build.resolve(args.path, {
-            importer: args.importer,
-            namespace: args.namespace,
-            kind: args.kind,
-            resolveDir: args.resolveDir,
-            pluginData: IN_NODE_MODULES,
-          });
-          if (!res.external) nodeModulesPaths.add(res.path);
-          return res;
+        // Pass through any node_modules internal resolution.
+        if (isNodeModulesResolution(args)) {
+          return undefined;
         }
 
         // The first pass resolver performs synchronous resolution. This
@@ -172,7 +154,6 @@ export function denoResolverPlugin(
           namespace,
           kind: args.kind,
         });
-        if (res.pluginData === IN_NODE_MODULES) nodeModulesPaths.add(res.path);
         return res;
       });
     },
