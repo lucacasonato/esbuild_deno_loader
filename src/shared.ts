@@ -4,6 +4,7 @@ import {
   fromFileUrl,
   ImportMap,
   JSONC,
+  SEPARATOR,
   toFileUrl,
 } from "../deps.ts";
 import { MediaType } from "./deno.ts";
@@ -360,8 +361,12 @@ export function expandEmbeddedImportMap(importMap: ImportMap) {
   }
 }
 
+const SLASH_NODE_MODULES_SLASH = `${SEPARATOR}node_modules${SEPARATOR}`;
+const SLASH_NODE_MODULES = `${SEPARATOR}node_modules`;
+
 export function isInNodeModules(path: string): boolean {
-  return path.includes("/node_modules/") || path.endsWith("/node_modules");
+  return path.includes(SLASH_NODE_MODULES_SLASH) ||
+    path.endsWith(SLASH_NODE_MODULES);
 }
 
 export function isNodeModulesResolution(args: esbuild.OnResolveArgs) {

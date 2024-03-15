@@ -448,7 +448,6 @@ Deno.test("npm specifiers global resolver - express", async (t) => {
     const output = res.outputFiles[0];
     assertEquals(output.path, "<stdout>");
     assert(!output.text.includes(`npm:`));
-    console.log(output.text);
     const blobURL = URL.createObjectURL(
       new Blob([
         "import { createRequire } from 'node:module';\nimport process from 'node:process';\nconst require = createRequire('file:///');\n",
@@ -637,7 +636,6 @@ Deno.test("npm specifiers local resolver - express", async (t) => {
     assertEquals(res.outputFiles.length, 1);
     const output = res.outputFiles[0];
     assertEquals(output.path, "<stdout>");
-    console.log(output.text);
     const blobURL = URL.createObjectURL(
       new Blob([
         "import { createRequire } from 'node:module';\nimport process from 'node:process';\nconst require = createRequire('file:///');\n",
