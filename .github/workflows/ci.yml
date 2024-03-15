@@ -18,6 +18,10 @@ jobs:
         deno: [v1.x, canary]
         os: [macOS-latest, windows-latest, ubuntu-latest]
 
+    permissions:
+      contents: read
+      id-token: write
+
     steps:
       - name: Setup repo
         uses: actions/checkout@v4

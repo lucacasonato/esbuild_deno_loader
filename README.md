@@ -19,7 +19,7 @@ import * as esbuild from "npm:esbuild@0.20.2";
 // permitted, such as Deno Deploy, or when running without `--allow-run`.
 // import * as esbuild from "npm:esbuild-wasm@0.20";
 
-import { denoPlugins } from "jsr:@luca/esbuild-deno-loader@^0.10.1";
+import { denoPlugins } from "jsr:@luca/esbuild-deno-loader@^0.10.2";
 
 const result = await esbuild.build({
   plugins: [...denoPlugins()],
