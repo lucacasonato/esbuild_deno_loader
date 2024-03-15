@@ -1,5 +1,5 @@
 import esbuild from "esbuild";
-import { extname, fromFileUrl, toFileUrl, SEPARATOR } from "@std/path";
+import { extname, fromFileUrl, SEPARATOR, toFileUrl } from "@std/path";
 import * as JSONC from "@std/jsonc";
 import { ImportMap } from "x/importmap";
 import { MediaType } from "./deno.ts";
