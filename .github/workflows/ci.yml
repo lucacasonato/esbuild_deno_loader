@@ -39,7 +39,7 @@ jobs:
 
       - name: Doc lint
         if: runner.os == 'Linux'
-        run: deno doc --lint
+        run: deno doc --lint mod.ts
 
       - name: Run tests
         run: deno test -A
