@@ -1,3 +1,29 @@
+export interface RootInfoOutput {
+  denoDir: string;
+  npmCache: string;
+}
+
+export async function rootInfo(): Promise<RootInfoOutput> {
+  if (!tmpDir) tmpDir = Deno.makeTempDirSync();
+  const opts = {
+    args: ["info", "--json", "--no-config", "--no-lock"],
+    cwd: tmpDir,
+    env: { DENO_NO_PACKAGE_JSON: "true" } as Record<string, string>,
+    stdout: "piped",
+    stderr: "inherit",
+  };
+
+  const output = await new Deno.Command(
+    Deno.execPath(),
+    opts as Deno.CommandOptions,
+  ).output();
+  if (!output.success) {
+    throw new Error(`Failed to call 'deno info'`);
+  }
+  const txt = new TextDecoder().decode(output.stdout);
+  return JSON.parse(txt);
+}
+
 // Lifted from https://raw.githubusercontent.com/denoland/deno_graph/89affe43c9d3d5c9165c8089687c107d53ed8fe1/lib/media_type.ts
 export type MediaType =
   | "JavaScript"

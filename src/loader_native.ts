@@ -1,12 +1,8 @@
-import {
-  DenoDir,
-  dirname,
-  encodeBase32,
-  esbuild,
-  fromFileUrl,
-  join,
-} from "../deps.ts";
+import esbuild from "esbuild";
+import { dirname, fromFileUrl, join } from "@std/path";
+import { encodeBase32 } from "@std/encoding/base32";
 import * as deno from "./deno.ts";
+import { rootInfo, RootInfoOutput } from "./deno.ts";
 import {
   Loader,
   LoaderResolution,
@@ -15,7 +11,7 @@ import {
   parseNpmSpecifier,
 } from "./shared.ts";
 
-let DENO_DIR: DenoDir | undefined;
+let ROOT_INFO_OUTPUT: Promise<RootInfoOutput> | RootInfoOutput | undefined;
 
 export interface NativeLoaderOptions {
   infoOptions?: deno.InfoOptions;
@@ -101,23 +97,28 @@ export class NativeLoader implements Loader {
     if (name.toLowerCase() !== name) {
       name = `_${encodeBase32(new TextEncoder().encode(name))}`;
     }
-    if (!DENO_DIR) DENO_DIR = new DenoDir(undefined);
+    if (ROOT_INFO_OUTPUT === undefined) {
+      ROOT_INFO_OUTPUT = rootInfo();
+    }
+    if (ROOT_INFO_OUTPUT instanceof Promise) {
+      ROOT_INFO_OUTPUT = await ROOT_INFO_OUTPUT;
+    }
+    const { denoDir, npmCache } = ROOT_INFO_OUTPUT;
     const packageDir = join(
-      DENO_DIR.root,
-      "npm",
+      npmCache,
       "registry.npmjs.org",
       name,
       npmPackage.version,
     );
     const linkDir = join(
-      DENO_DIR.root,
+      denoDir,
       "deno_esbuild",
       npmPackageId,
       "node_modules",
       name,
     );
     const linkDirParent = dirname(linkDir);
-    const tmpDirParent = join(DENO_DIR.root, "deno_esbuild_tmp");
+    const tmpDirParent = join(denoDir, "deno_esbuild_tmp");
 
     // check if the package is already linked, if so, return the link and skip
     // a bunch of work

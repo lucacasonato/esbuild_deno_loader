@@ -4,9 +4,9 @@ import {
   parseJsrSpecifier,
   parseNpmSpecifier,
 } from "./shared.ts";
-import { assertEquals, assertThrows } from "../test_deps.ts";
+import { assertEquals, assertThrows } from "@std/assert";
 import { JsrSpecifier } from "./shared.ts";
-import { ImportMap } from "../deps.ts";
+import { ImportMap } from "x/importmap";
 
 interface NpmSpecifierTestCase extends NpmSpecifier {
   specifier: string;

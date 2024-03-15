@@ -1,4 +1,5 @@
-import { esbuild, fromFileUrl } from "../deps.ts";
+import esbuild from "esbuild";
+import { fromFileUrl } from "@std/path";
 import * as deno from "./deno.ts";
 import {
   Loader,
