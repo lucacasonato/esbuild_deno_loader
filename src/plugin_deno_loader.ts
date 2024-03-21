@@ -72,6 +72,12 @@ export interface DenoLoaderPluginOptions {
    * loader always uses a local `node_modules` directory.
    */
   nodeModulesDir?: boolean;
+  /**
+   * Specify whether to pass the quiet option to deno info.
+   *
+   * This option is ignored when using the `portable` loader.
+   */
+  quiet?: boolean;
 }
 
 const LOADERS = ["native", "portable"] as const;
@@ -209,6 +215,7 @@ export function denoLoaderPlugin(
                 importMap: options.importMapURL,
                 lock: options.lockPath,
                 nodeModulesDir: options.nodeModulesDir,
+                quiet: options.quiet,
               },
             });
             break;
