@@ -1,6 +1,6 @@
 import * as esbuildNative from "https://deno.land/x/esbuild@v0.20.2/mod.js";
 import * as esbuildWasm from "https://deno.land/x/esbuild@v0.20.2/wasm.js";
-import { join } from "@std/path";
+import { join, toFileUrl } from "@std/path";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
   denoPlugins,
@@ -696,6 +696,31 @@ Deno.test("bundle explicit import map", async (t) => {
 Deno.test("bundle config inline import map", async (t) => {
   await testLoader(t, LOADERS, async (esbuild, loader) => {
     const configPath = join(Deno.cwd(), "testdata", "config_inline.jsonc");
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [
+        ...denoPlugins({ configPath, loader }),
+      ],
+      bundle: true,
+      platform: "neutral",
+      entryPoints: ["./testdata/mapped.js"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { bool } = await import(dataURL);
+    assertEquals(bool, "asd2");
+  });
+});
+
+Deno.test("bundle remote config inline import map", async (t) => {
+  await testLoader(t, LOADERS, async (esbuild, loader) => {
+    const configPath = toFileUrl(
+      join(Deno.cwd(), "testdata", "config_inline.jsonc"),
+    );
     const res = await esbuild.build({
       ...DEFAULT_OPTS,
       plugins: [

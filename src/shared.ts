@@ -1,4 +1,10 @@
-import { extname, fromFileUrl, SEPARATOR, toFileUrl } from "@std/path";
+import {
+  extname,
+  fromFileUrl,
+  isAbsolute,
+  SEPARATOR,
+  toFileUrl,
+} from "@std/path";
 import * as JSONC from "@std/jsonc";
 import { ImportMap } from "x/importmap";
 import { MediaType } from "./deno.ts";
@@ -105,34 +111,40 @@ interface DenoConfig {
   importMap?: string;
 }
 
-export async function readDenoConfig(path: string): Promise<DenoConfig> {
-  const file = await Deno.readTextFile(path);
-  const res = JSONC.parse(file);
+export async function readDenoConfig(
+  path: string,
+): Promise<DenoConfig> {
+  const configURL = isAbsolute(path)
+    ? new URL(toFileUrl(path)).href
+    : new URL(path).href;
+  const resp = await fetch(configURL);
+  const data = await resp.text();
+  const res = JSONC.parse(data);
   if (typeof res !== "object" || res === null || Array.isArray(res)) {
-    throw new Error(`Deno config at ${path} must be an object`);
+    throw new Error(`Deno config at ${configURL} must be an object`);
   }
   if (
     "imports" in res &&
     (typeof res.imports !== "object" || res.imports === null ||
       Array.isArray(res.imports))
   ) {
-    throw new Error(`Deno config at ${path} has invalid "imports" key`);
+    throw new Error(`Deno config at ${configURL} has invalid "imports" key`);
   }
   if (
     "scopes" in res &&
     (typeof res.scopes !== "object" || res.scopes === null ||
       Array.isArray(res.scopes))
   ) {
-    throw new Error(`Deno config at ${path} has invalid "scopes" key`);
+    throw new Error(`Deno config at ${configURL} has invalid "scopes" key`);
   }
   if (
     "lock" in res &&
     typeof res.lock !== "boolean" && typeof res.lock !== "string"
   ) {
-    throw new Error(`Deno config at ${path} has invalid "lock" key`);
+    throw new Error(`Deno config at ${configURL} has invalid "lock" key`);
   }
   if ("importMap" in res && typeof res.importMap !== "string") {
-    throw new Error(`Deno config at ${path} has invalid "importMap" key`);
+    throw new Error(`Deno config at ${configURL} has invalid "importMap" key`);
   }
   return res;
 }
