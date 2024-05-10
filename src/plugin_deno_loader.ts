@@ -73,7 +73,7 @@ export interface DenoLoaderPluginOptions {
    */
   nodeModulesDir?: boolean;
   /**
-   * Specify whether to pass the quiet option to deno info.
+   * Specify whether to pass the quiet option to `deno info`.
    *
    * This option is ignored when using the `portable` loader.
    */
