@@ -16,7 +16,13 @@ interface Module {
   data: Uint8Array;
 }
 
-const JSR_REGISTRY_URL = Deno.env.get("DENO_REGISTRY_URL") ?? Deno.env.get("JSR_URL") ?? "https://jsr.io";
+const DENO_REGISTRY_URL = Deno.env.get("DENO_REGISTRY_URL");
+
+if (typeof DENO_REGISTRY_URL !== "undefined") {
+  console.warn(`DENO_REGISTRY_URL is deprecated use JSR_URL instead`);
+}
+
+const JSR_REGISTRY_URL = DENO_REGISTRY_URL ?? Deno.env.get("JSR_URL") ?? "https://jsr.io";
 
 async function readLockfile(path: string): Promise<deno.Lockfile | null> {
   try {
