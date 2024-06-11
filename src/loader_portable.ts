@@ -16,7 +16,7 @@ interface Module {
   data: Uint8Array;
 }
 
-const JSR_REGISTRY_URL = Deno.env.get("DENO_REGISTRY_URL") ?? "https://jsr.io";
+const JSR_REGISTRY_URL = Deno.env.get("DENO_REGISTRY_URL") ?? Deno.env.get("JSR_URL") ?? "https://jsr.io";
 
 async function readLockfile(path: string): Promise<deno.Lockfile | null> {
   try {
