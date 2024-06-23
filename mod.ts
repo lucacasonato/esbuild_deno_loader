@@ -13,9 +13,11 @@ import {
 } from "./src/plugin_deno_loader.ts";
 export { DEFAULT_LOADER, denoLoaderPlugin, DenoLoaderPluginOptions };
 
+import type { Specifiers } from "./src/shared.ts";
 export {
   type EsbuildResolution,
   esbuildResolutionToURL,
+  type Specifiers,
   urlToEsbuildResolution,
 } from "./src/shared.ts";
 
@@ -65,6 +67,12 @@ export interface DenoPluginsOptions {
    * loader always uses a local `node_modules` directory.
    */
   nodeModulesDir?: boolean;
+  /**
+   * Which specifiers will be resolved.
+   *
+   * If this option is not specified, all specifiers will be provided.
+   */
+  specifiers?: Specifiers;
 }
 
 /**

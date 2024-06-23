@@ -1,5 +1,5 @@
 import type * as esbuild from "./esbuild_types.ts";
-import { toFileUrl } from "@std/path";
+import { toFileUrl, win32 } from "@std/path";
 import {
   ImportMap,
   resolveImportMap,
@@ -7,11 +7,13 @@ import {
 } from "x/importmap";
 import { Scopes, SpecifierMap } from "x/importmap/_util.ts";
 import {
+  DEFAULT_SPECIFIERS,
   expandEmbeddedImportMap,
   isNodeModulesResolution,
   readDenoConfig,
   urlToEsbuildResolution,
 } from "./shared.ts";
+import type { Specifiers } from "../mod.ts";
 export type { ImportMap, Scopes, SpecifierMap };
 
 /** Options for the {@link denoResolverPlugin}. */
@@ -30,6 +32,12 @@ export interface DenoResolverPluginOptions {
    * determine what import map to use, if any.
    */
   importMapURL?: string;
+  /**
+   * Which specifiers will be resolved.
+   *
+   * If this option is not specified, all specifiers will be provided.
+   */
+  specifiers?: Specifiers;
 }
 
 /**
@@ -46,6 +54,8 @@ export function denoResolverPlugin(
     name: "deno-resolver",
     setup(build) {
       let importMap: ImportMap | null = null;
+
+      const specifiers = options.specifiers ?? DEFAULT_SPECIFIERS;
 
       const externalRegexps: RegExp[] = (build.initialOptions.external ?? [])
         .map((external) => {
@@ -96,7 +106,17 @@ export function denoResolverPlugin(
         }
       });
 
-      build.onResolve({ filter: /.*/ }, async function onResolve(args) {
+      build.onResolve({ filter: /.*/ }, async function onResolve(
+        args: esbuild.OnResolveArgs,
+      ) {
+        // Skip unsupported specifiers
+        if (
+          args.namespace != "" &&
+          specifiers[args.namespace as keyof Specifiers] != true
+        ) {
+          return undefined;
+        }
+
         // Pass through any node_modules internal resolution.
         if (isNodeModulesResolution(args)) {
           return undefined;

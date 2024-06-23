@@ -390,3 +390,26 @@ export function isNodeModulesResolution(args: esbuild.OnResolveArgs) {
       isInNodeModules(args.importer))
   );
 }
+
+/**
+ * List of specifiers that can be resolved.
+ */
+export interface Specifiers {
+  file?: boolean;
+  http?: boolean;
+  https?: boolean;
+  data?: boolean;
+  npm?: boolean;
+  jsr?: boolean;
+  node?: boolean;
+}
+
+export const DEFAULT_SPECIFIERS: Specifiers = {
+  file: true,
+  http: true,
+  https: true,
+  data: true,
+  npm: true,
+  jsr: true,
+  node: true,
+};

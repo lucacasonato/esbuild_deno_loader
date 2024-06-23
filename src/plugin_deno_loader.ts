@@ -2,12 +2,13 @@ import type * as esbuild from "./esbuild_types.ts";
 import { dirname, join } from "@std/path";
 import { NativeLoader } from "./loader_native.ts";
 import { PortableLoader } from "./loader_portable.ts";
-import { isInNodeModules } from "./shared.ts";
+import { DEFAULT_SPECIFIERS, isInNodeModules } from "./shared.ts";
 import {
   esbuildResolutionToURL,
   isNodeModulesResolution,
   Loader,
   readDenoConfig,
+  type Specifiers,
   urlToEsbuildResolution,
 } from "./shared.ts";
 
@@ -72,6 +73,12 @@ export interface DenoLoaderPluginOptions {
    * loader always uses a local `node_modules` directory.
    */
   nodeModulesDir?: boolean;
+  /**
+   * Which specifiers will be resolved.
+   *
+   * If this option is not specified, all specifiers will be provided.
+   */
+  specifiers?: Specifiers;
 }
 
 const LOADERS = ["native", "portable"] as const;
@@ -189,6 +196,8 @@ export function denoLoaderPlugin(
     setup(build) {
       const cwd = build.initialOptions.absWorkingDir ?? Deno.cwd();
 
+      const specifiers = options.specifiers ?? DEFAULT_SPECIFIERS;
+
       let nodeModulesDir: string | null = null;
       if (options.nodeModulesDir) {
         nodeModulesDir = join(cwd, "node_modules");
@@ -237,10 +246,18 @@ export function denoLoaderPlugin(
             BUILTIN_NODE_MODULES.has(args.path) ||
             BUILTIN_NODE_MODULES.has("node:" + args.path)
           ) {
-            return {
-              path: args.path,
-              external: true,
-            };
+            if (specifiers.node == true) {
+              return {
+                path: args.path,
+                external: true,
+              };
+            } else {
+              return await build.resolve("node:" + args.path, {
+                kind: args.kind,
+                resolveDir: args.resolveDir,
+                importer: args.importer,
+              });
+            }
           }
           if (nodeModulesDir) {
             return undefined;
@@ -339,13 +356,9 @@ export function denoLoaderPlugin(
           }
         }
       }
-      build.onResolve({ filter: /.*/, namespace: "file" }, onResolve);
-      build.onResolve({ filter: /.*/, namespace: "http" }, onResolve);
-      build.onResolve({ filter: /.*/, namespace: "https" }, onResolve);
-      build.onResolve({ filter: /.*/, namespace: "data" }, onResolve);
-      build.onResolve({ filter: /.*/, namespace: "npm" }, onResolve);
-      build.onResolve({ filter: /.*/, namespace: "jsr" }, onResolve);
-      build.onResolve({ filter: /.*/, namespace: "node" }, onResolve);
+      for (const namespace in specifiers) {
+        build.onResolve({ filter: /.*/, namespace }, onResolve);
+      }
 
       function onLoad(
         args: esbuild.OnLoadArgs,
@@ -358,10 +371,18 @@ export function denoLoaderPlugin(
         return loaderImpl.loadEsm(specifier);
       }
       // TODO(lucacasonato): once https://github.com/evanw/esbuild/pull/2968 is fixed, remove the catch all "file" handler
-      build.onLoad({ filter: /.*/, namespace: "file" }, onLoad);
-      build.onLoad({ filter: /.*/, namespace: "http" }, onLoad);
-      build.onLoad({ filter: /.*/, namespace: "https" }, onLoad);
-      build.onLoad({ filter: /.*/, namespace: "data" }, onLoad);
+      if (specifiers.file == true) {
+        build.onLoad({ filter: /.*/, namespace: "file" }, onLoad);
+      }
+      if (specifiers.http == true) {
+        build.onLoad({ filter: /.*/, namespace: "http" }, onLoad);
+      }
+      if (specifiers.https == true) {
+        build.onLoad({ filter: /.*/, namespace: "https" }, onLoad);
+      }
+      if (specifiers.data == true) {
+        build.onLoad({ filter: /.*/, namespace: "data" }, onLoad);
+      }
     },
   };
 }
