@@ -260,8 +260,3 @@ export class InfoCache {
     }
   }
 }
-
-export interface Lockfile {
-  version: string;
-  packages?: { specifiers?: Record<string, string> };
-}
