@@ -24,5 +24,5 @@
   },
   "fmt": { "exclude": ["dist"] },
   "lint": { "exclude": ["dist"] },
-  "publish": { "exclude": ["testdata/", "*_test.ts"] }
+  "publish": { "exclude": ["testdata/", "*_test.ts", "!src/wasm/loader.generated.d.ts", "!src/wasm/loader.generated.js"] }
 }
