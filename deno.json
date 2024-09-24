@@ -19,7 +19,8 @@
   "tasks": {
     "test": "deno test -A --parallel --trace-ops",
     "check:types": "deno check **/*.ts",
-    "ok": "deno fmt --check && deno lint && deno task check:types && deno task test"
+    "ok": "deno fmt --check && deno lint && deno task check:types && deno task test",
+    "wasmbuild": "deno run -A jsr:@deno/wasmbuild@0.17.2 --sync --out src/wasm"
   },
   "fmt": { "exclude": ["dist"] },
   "lint": { "exclude": ["dist"] },

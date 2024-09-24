@@ -1,11 +1,11 @@
 import type * as esbuild from "./esbuild_types.ts";
 import { toFileUrl } from "@std/path";
 import {
-  ImportMap,
+  type ImportMap,
   resolveImportMap,
   resolveModuleSpecifier,
 } from "x/importmap";
-import { Scopes, SpecifierMap } from "x/importmap/_util.ts";
+import type { Scopes, SpecifierMap } from "x/importmap/_util.ts";
 import {
   expandEmbeddedImportMap,
   isNodeModulesResolution,

@@ -1,13 +1,13 @@
 import {
-  ImportMap,
+  type ImportMap,
   isImportMap,
   isImports,
   isScopes,
   isSpecifierMap,
   isURL,
-  Scopes,
+  type Scopes,
   sortObject,
-  SpecifierMap,
+  type SpecifierMap,
 } from "./_util.ts";
 
 export type { ImportMap } from "./_util.ts";

@@ -6,7 +6,7 @@ import { isInNodeModules } from "./shared.ts";
 import {
   esbuildResolutionToURL,
   isNodeModulesResolution,
-  Loader,
+  type Loader,
   readDenoConfig,
   urlToEsbuildResolution,
 } from "./shared.ts";
