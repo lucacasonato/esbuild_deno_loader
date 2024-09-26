@@ -22,7 +22,14 @@
     "ok": "deno fmt --check && deno lint && deno task check:types && deno task test",
     "wasmbuild": "deno run -A jsr:@deno/wasmbuild@0.17.2 --sync --out src/wasm"
   },
-  "fmt": { "exclude": ["dist"] },
-  "lint": { "exclude": ["dist"] },
-  "publish": { "exclude": ["testdata/", "*_test.ts", "!src/wasm/loader.generated.d.ts", "!src/wasm/loader.generated.js"] }
+  "fmt": { "exclude": ["dist", "target"] },
+  "lint": { "exclude": ["dist", "target"] },
+  "publish": {
+    "exclude": [
+      "testdata/",
+      "*_test.ts",
+      "!src/wasm/loader.generated.d.ts",
+      "!src/wasm/loader.generated.js"
+    ]
+  }
 }
