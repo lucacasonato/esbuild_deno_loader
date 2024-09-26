@@ -41,7 +41,7 @@ jobs:
         run: deno fmt --check
 
       - name: Build Wasm
-        run: deno task build
+        run: deno task wasmbuild
 
       - name: Lint
         if: runner.os == 'Linux'
