@@ -9,7 +9,7 @@
       "name": "Deno",
       "type": "node",
       "cwd": "${workspaceFolder}",
-      "env": {},
+      "env": {}
     }
   ]
 }
