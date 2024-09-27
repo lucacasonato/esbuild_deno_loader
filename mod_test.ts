@@ -462,6 +462,38 @@ Deno.test("npm specifiers global resolver - express", async (t) => {
   });
 });
 
+Deno.test("npm specifiers global resolver with alternative registry", {
+  ignore: Deno.version.deno.startsWith("1."),
+}, async (t) => {
+  await testLoader(t, ["native"], async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [
+        ...denoPlugins({
+          loader,
+          configPath: Deno.realPathSync("./testdata/npmrc/deno.json"),
+        }),
+      ],
+      absWorkingDir: Deno.realPathSync("./testdata/npmrc"),
+      bundle: true,
+      entryPoints: ["./main.ts"],
+      platform: "node",
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(!output.text.includes(`npm:`));
+    const { default: chalk } = await import(
+      `data:application/javascript;base64,${btoa(output.text)}`
+    );
+    assertEquals(typeof chalk, "function");
+    assertEquals(typeof chalk.red, "function");
+  });
+});
+
 Deno.test("npm specifiers local resolver (manual) - preact", async (t) => {
   await testLoader(t, LOADERS, async (esbuild, loader) => {
     if (esbuild === PLATFORMS.wasm) return;

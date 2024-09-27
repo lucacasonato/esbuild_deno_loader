@@ -126,15 +126,19 @@ export class NativeLoader implements Loader {
       ROOT_INFO_OUTPUT = await ROOT_INFO_OUTPUT;
     }
     const { denoDir, npmCache } = ROOT_INFO_OUTPUT;
+    const registryUrl = npmPackage.registryUrl ?? "https://registry.npmjs.org";
+    const registry = new URL(registryUrl);
+
     const packageDir = join(
       npmCache,
-      "registry.npmjs.org",
+      registry.hostname,
       name,
       npmPackage.version,
     );
     const linkDir = join(
       denoDir,
       "deno_esbuild",
+      registry.hostname,
       npmPackageId,
       "node_modules",
       name,
