@@ -462,21 +462,19 @@ Deno.test("npm specifiers global resolver - express", async (t) => {
   });
 });
 
-Deno.test("npm specifiers local resolver - preact", async (t) => {
+Deno.test("npm specifiers local resolver (manual) - preact", async (t) => {
   await testLoader(t, LOADERS, async (esbuild, loader) => {
     if (esbuild === PLATFORMS.wasm) return;
     const entryPoint =
       new URL("./testdata/npm/preact.tsx", import.meta.url).href;
     const tmp = Deno.makeTempDirSync();
-    if (loader === "portable") {
-      new Deno.Command(Deno.execPath(), {
-        args: ["cache", "--node-modules-dir", entryPoint],
-        cwd: tmp,
-      }).outputSync();
-    }
+    new Deno.Command(Deno.execPath(), {
+      args: ["cache", "--node-modules-dir", entryPoint],
+      cwd: tmp,
+    }).outputSync();
     const res = await esbuild.build({
       ...DEFAULT_OPTS,
-      plugins: [...denoPlugins({ loader, nodeModulesDir: true })],
+      plugins: [...denoPlugins({ loader, nodeModulesDir: "manual" })],
       bundle: true,
       absWorkingDir: tmp,
       entryPoints: [entryPoint],
@@ -493,7 +491,67 @@ Deno.test("npm specifiers local resolver - preact", async (t) => {
   });
 });
 
-Deno.test("npm specifiers local resolver - react", async (t) => {
+Deno.test("npm specifiers local resolver (auto) - preact", async (t) => {
+  await testLoader(t, LOADERS, async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const entryPoint =
+      new URL("./testdata/npm/preact.tsx", import.meta.url).href;
+    const tmp = Deno.makeTempDirSync();
+    if (loader === "portable") {
+      new Deno.Command(Deno.execPath(), {
+        args: ["cache", "--node-modules-dir", entryPoint],
+        cwd: tmp,
+      }).outputSync();
+    }
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader, nodeModulesDir: "auto" })],
+      bundle: true,
+      absWorkingDir: tmp,
+      entryPoints: [entryPoint],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(!output.text.includes(`npm:`));
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: html } = await import(dataURL);
+    assertEquals(html, "<div>hello world</div>");
+  });
+});
+
+Deno.test("npm specifiers local resolver (manual) - react", async (t) => {
+  await testLoader(t, LOADERS, async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const tmp = Deno.makeTempDirSync();
+    const entryPoint =
+      new URL("./testdata/npm/preact.tsx", import.meta.url).href;
+    new Deno.Command(Deno.execPath(), {
+      args: ["cache", "--node-modules-dir", entryPoint],
+      cwd: tmp,
+    }).outputSync();
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader, nodeModulesDir: "manual" })],
+      bundle: true,
+      absWorkingDir: tmp,
+      entryPoints: [entryPoint],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assert(!output.text.includes(`npm:`));
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: html } = await import(dataURL);
+    assertEquals(html, "<div>hello world</div>");
+  });
+});
+
+Deno.test("npm specifiers local resolver (auto) - react", async (t) => {
   await testLoader(t, LOADERS, async (esbuild, loader) => {
     if (esbuild === PLATFORMS.wasm) return;
     const tmp = Deno.makeTempDirSync();
@@ -507,7 +565,7 @@ Deno.test("npm specifiers local resolver - react", async (t) => {
     }
     const res = await esbuild.build({
       ...DEFAULT_OPTS,
-      plugins: [...denoPlugins({ loader, nodeModulesDir: true })],
+      plugins: [...denoPlugins({ loader, nodeModulesDir: "auto" })],
       bundle: true,
       absWorkingDir: tmp,
       entryPoints: [entryPoint],
@@ -538,7 +596,7 @@ Deno.test("npm specifiers local resolver - @preact/signals", async (t) => {
     }
     const res = await esbuild.build({
       ...DEFAULT_OPTS,
-      plugins: [...denoPlugins({ loader, nodeModulesDir: true })],
+      plugins: [...denoPlugins({ loader, nodeModulesDir: "auto" })],
       bundle: true,
       absWorkingDir: tmp,
       entryPoints: [entryPoint],
@@ -569,7 +627,7 @@ Deno.test("npm specifiers local resolver - @oramacloud/client", async (t) => {
     }
     const res = await esbuild.build({
       ...DEFAULT_OPTS,
-      plugins: [...denoPlugins({ loader, nodeModulesDir: true })],
+      plugins: [...denoPlugins({ loader, nodeModulesDir: "auto" })],
       bundle: true,
       absWorkingDir: tmp,
       entryPoints: [entryPoint],
@@ -598,7 +656,7 @@ Deno.test("npm specifiers local resolver - typo-js", async (t) => {
     }
     const res = await esbuild.build({
       ...DEFAULT_OPTS,
-      plugins: [...denoPlugins({ loader, nodeModulesDir: true })],
+      plugins: [...denoPlugins({ loader, nodeModulesDir: "auto" })],
       bundle: true,
       absWorkingDir: tmp,
       entryPoints: ["npm:typo-js"],
@@ -627,7 +685,7 @@ Deno.test("npm specifiers local resolver - express", async (t) => {
     }
     const res = await esbuild.build({
       ...DEFAULT_OPTS,
-      plugins: [...denoPlugins({ loader, nodeModulesDir: true })],
+      plugins: [...denoPlugins({ loader, nodeModulesDir: "auto" })],
       bundle: true,
       absWorkingDir: tmp,
       entryPoints: ["npm:express@4"],

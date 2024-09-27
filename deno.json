@@ -7,8 +7,9 @@
   },
   "imports": {
     "@std/assert": "jsr:@std/assert@0.213",
-    "@std/encoding/base32": "jsr:@std/encoding@0.213/base32",
+    "@std/bytes": "jsr:@std/bytes@^1.0.2",
     "@std/encoding": "jsr:@std/encoding@0.213",
+    "@std/encoding/base32": "jsr:@std/encoding@0.213/base32",
     "@std/fs": "jsr:@std/fs@0.213",
     "@std/jsonc": "jsr:@std/jsonc@0.213",
     "@std/path": "jsr:@std/path@0.213",

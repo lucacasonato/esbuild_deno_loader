@@ -105,6 +105,7 @@ interface DenoConfig {
   scopes?: unknown;
   lock?: boolean | string;
   importMap?: string;
+  nodeModulesDir?: "auto" | "manual" | "none";
 }
 
 export async function readDenoConfig(path: string): Promise<DenoConfig> {
@@ -135,6 +136,28 @@ export async function readDenoConfig(path: string): Promise<DenoConfig> {
   }
   if ("importMap" in res && typeof res.importMap !== "string") {
     throw new Error(`Deno config at ${path} has invalid "importMap" key`);
+  }
+  if (typeof res.nodeModulesDir === "boolean") {
+    if (res.nodeModulesDir) {
+      res.nodeModulesDir = "auto";
+    } else {
+      delete res.nodeModulesDir;
+    }
+  }
+  if ("nodeModulesDir" in res) {
+    if (typeof res.nodeModulesDir !== "string") {
+      throw new Error(
+        `Deno config at ${path} has invalid "nodeModulesDir" key`,
+      );
+    }
+    if (
+      res.nodeModulesDir !== "auto" && res.nodeModulesDir !== "manual" &&
+      res.nodeModulesDir !== "none"
+    ) {
+      throw new Error(
+        `Deno config at ${path} has invalid "nodeModulesDir" key, must be "auto", "manual", or "none"`,
+      );
+    }
   }
   return res;
 }
