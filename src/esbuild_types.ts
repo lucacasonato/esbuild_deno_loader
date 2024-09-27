@@ -62,7 +62,9 @@ export interface PluginBuild {
   /** Documentation: https://esbuild.github.io/plugins/#on-load */
   onLoad(
     options: OnLoadOptions,
-    callback: (args: OnLoadArgs) => Promise<OnLoadResult | null | undefined> | undefined,
+    callback: (
+      args: OnLoadArgs,
+    ) => Promise<OnLoadResult | null | undefined> | undefined,
   ): void;
 }
 
