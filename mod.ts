@@ -4,14 +4,14 @@ import {
   denoResolverPlugin,
   type DenoResolverPluginOptions,
 } from "./src/plugin_deno_resolver.ts";
-export { denoResolverPlugin, DenoResolverPluginOptions };
+export { denoResolverPlugin, type DenoResolverPluginOptions };
 
 import {
   DEFAULT_LOADER,
   denoLoaderPlugin,
   type DenoLoaderPluginOptions,
 } from "./src/plugin_deno_loader.ts";
-export { DEFAULT_LOADER, denoLoaderPlugin, DenoLoaderPluginOptions };
+export { DEFAULT_LOADER, denoLoaderPlugin, type DenoLoaderPluginOptions };
 
 export {
   type EsbuildResolution,

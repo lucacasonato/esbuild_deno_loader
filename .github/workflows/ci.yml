@@ -29,14 +29,19 @@ jobs:
       - name: Setup Deno
         uses: denoland/setup-deno@main
         with:
-          # TODO: revert back to actually using latest stable once https://github.com/denoland/deno/issues/22926 is released
-          deno-version: ${{ matrix.deno == 'v1.x' && 'v1.40.3' || matrix.deno}}
+          deno-version: "1.x"
+
+      - name: Install Rust
+        uses: dsherret/rust-toolchain-file@v1
 
       - run: deno --version
 
       - name: Format
         if: runner.os == 'Linux'
         run: deno fmt --check
+
+      - name: Build Wasm
+        run: deno task wasmbuild
 
       - name: Lint
         if: runner.os == 'Linux'

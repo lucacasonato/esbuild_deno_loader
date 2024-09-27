@@ -2,10 +2,10 @@ import type * as esbuild from "./esbuild_types.ts";
 import { dirname, fromFileUrl, join } from "@std/path";
 import { encodeBase32 } from "@std/encoding/base32";
 import * as deno from "./deno.ts";
-import { rootInfo, RootInfoOutput } from "./deno.ts";
+import { rootInfo, type RootInfoOutput } from "./deno.ts";
 import {
-  Loader,
-  LoaderResolution,
+  type Loader,
+  type LoaderResolution,
   mapContentType,
   mediaTypeToLoader,
   parseNpmSpecifier,

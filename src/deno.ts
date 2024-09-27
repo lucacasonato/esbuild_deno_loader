@@ -111,8 +111,12 @@ async function info(
   specifier: string,
   options: InfoOptions,
 ): Promise<InfoOutput> {
+  const args = ["info", "--json"];
+  if (!Deno.version.deno.startsWith("1.")) {
+    args.push("--allow-import");
+  }
   const opts = {
-    args: ["info", "--json"],
+    args,
     cwd: undefined as string | undefined,
     env: { DENO_NO_PACKAGE_JSON: "true" } as Record<string, string>,
     stdout: "piped",
@@ -187,7 +191,14 @@ export class InfoCache {
   }
 
   #resolve(specifier: string): string {
-    return this.#redirects.get(specifier) ?? specifier;
+    const original = specifier;
+    let counter = 0;
+    while (counter++ < 10) {
+      const redirect = this.#redirects.get(specifier);
+      if (redirect === undefined) return specifier;
+      specifier = redirect;
+    }
+    throw new Error(`Too many redirects for '${original}'`);
   }
 
   #getCached(specifier: string): ModuleEntry | undefined {
@@ -259,9 +270,4 @@ export class InfoCache {
       this.#npmPackages.set(id, npmPackage);
     }
   }
-}
-
-export interface Lockfile {
-  version: string;
-  packages?: { specifiers?: Record<string, string> };
 }

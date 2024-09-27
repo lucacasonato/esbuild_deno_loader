@@ -15,7 +15,7 @@ This example bundles an entrypoint into a single ESM output.
 
 ```js
 import * as esbuild from "npm:esbuild@0.20.2";
-// Import the WASM build on platforms where running subprocesses is not
+// Import the Wasm build on platforms where running subprocesses is not
 // permitted, such as Deno Deploy, or when running without `--allow-run`.
 // import * as esbuild from "https://deno.land/x/esbuild@0.20.2/wasm.js";
 
@@ -42,7 +42,7 @@ esbuild.stop();
   pre-downloaded into a local `node_modules/` directory.
 - When using the `"portable"` loader with `jsr:` specifiers, a lockfile must be
   present and passed to the loader (either using `configPath` or `lockPath`).
-- `npm:` specifiers are not supported on WASM esbuild builds due to FS access
+- `npm:` specifiers are not supported on Wasm esbuild builds due to FS access
   limitations (see https://github.com/evanw/esbuild/pull/2968).
 
 ## Documentation

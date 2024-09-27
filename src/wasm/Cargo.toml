@@ -1,0 +1,14 @@
+[package]
+name = "loader"
+version = "0.0.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+# deno_config = { git = "https://github.com/denoland/deno_config.git", rev = "59e578eaea0b720b4d79d5617b1f2a1c076b0d2b" }
+deno_lockfile = "0.23.1"
+deno_semver = "0.5.13"
+thiserror = "1.0.64"
+wasm-bindgen = "=0.2.92"

@@ -739,7 +739,9 @@ Deno.test("bundle config ref import map", async (t) => {
   });
 });
 
-Deno.test("bundle config inline import map with expansion", async (t) => {
+Deno.test("bundle config inline import map with expansion", {
+  ignore: Deno.version.deno.startsWith("1."),
+}, async (t) => {
   await testLoader(t, LOADERS, async (esbuild, loader) => {
     const configPath = join(
       Deno.cwd(),
@@ -874,7 +876,9 @@ Deno.test("externals", async (t) => {
   });
 });
 
-Deno.test("jsr specifiers - auto discovered lock file", async (t) => {
+Deno.test("jsr specifiers - auto discovered lock file", {
+  ignore: Deno.version.deno.startsWith("1."),
+}, async (t) => {
   await testLoader(t, LOADERS, async (esbuild, loader) => {
     const configPath = join(Deno.cwd(), "testdata", "jsr", "deno.json");
     const res = await esbuild.build({
@@ -899,9 +903,36 @@ Deno.test("jsr specifiers - auto discovered lock file", async (t) => {
   });
 });
 
-Deno.test("jsr specifiers - lock file referenced in deno.json", async (t) => {
+Deno.test("jsr specifiers - lock file referenced in deno.json", {
+  ignore: Deno.version.deno.startsWith("1."),
+}, async (t) => {
   await testLoader(t, LOADERS, async (esbuild, loader) => {
     const configPath = join(Deno.cwd(), "testdata", "jsr_deno.json");
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader, configPath })],
+      bundle: true,
+      platform: "neutral",
+      entryPoints: ["jsr:@std/path@^0.213"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertStringIncludes(
+      output.text,
+      "https://jsr.io/@std/path/0.213.1/mod.ts",
+    );
+    const ns = await import(
+      `data:application/javascript;base64,${btoa(output.text)}`
+    );
+    assertEquals(ns.join("a", "b"), join("a", "b"));
+  });
+});
+
+Deno.test("jsr specifiers - lock file v3 referenced in deno.json", async (t) => {
+  await testLoader(t, ["portable"], async (esbuild, loader) => {
+    const configPath = join(Deno.cwd(), "testdata", "jsr_deno_lockv3.json");
     const res = await esbuild.build({
       ...DEFAULT_OPTS,
       plugins: [...denoPlugins({ loader, configPath })],

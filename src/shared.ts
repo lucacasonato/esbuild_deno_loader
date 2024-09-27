@@ -1,7 +1,7 @@
 import { extname, fromFileUrl, SEPARATOR, toFileUrl } from "@std/path";
 import * as JSONC from "@std/jsonc";
-import { ImportMap } from "x/importmap";
-import { MediaType } from "./deno.ts";
+import type { ImportMap } from "x/importmap";
+import type { MediaType } from "./deno.ts";
 import type * as esbuild from "./esbuild_types.ts";
 
 export interface Loader {
@@ -13,6 +13,8 @@ export interface Loader {
     parentPackageId: string,
   ): string | null;
   nodeModulesDirForPackage?(npmPackageId?: string): Promise<string>;
+
+  [Symbol.dispose]?(): void;
 }
 
 export type LoaderResolution =

@@ -1,14 +1,15 @@
 import type * as esbuild from "./esbuild_types.ts";
 import { fromFileUrl } from "@std/path";
-import * as deno from "./deno.ts";
+import type * as deno from "./deno.ts";
 import {
-  Loader,
-  LoaderResolution,
+  type Loader,
+  type LoaderResolution,
   mapContentType,
   mediaTypeToLoader,
   parseJsrSpecifier,
   parseNpmSpecifier,
 } from "./shared.ts";
+import { instantiate, type WasmLockfile } from "./wasm/loader.generated.js";
 
 interface Module {
   specifier: string;
@@ -16,12 +17,13 @@ interface Module {
   data: Uint8Array;
 }
 
-const JSR_REGISTRY_URL = Deno.env.get("DENO_REGISTRY_URL") ?? "https://jsr.io";
+const JSR_URL = Deno.env.get("JSR_URL") ?? "https://jsr.io";
 
-async function readLockfile(path: string): Promise<deno.Lockfile | null> {
+async function readLockfile(path: string): Promise<WasmLockfile | null> {
   try {
     const data = await Deno.readTextFile(path);
-    return JSON.parse(data);
+    const instance = instantiate();
+    return new instance.WasmLockfile(path, data);
   } catch (err) {
     if (err instanceof Deno.errors.NotFound) {
       return null;
@@ -34,16 +36,22 @@ interface PortableLoaderOptions {
   lock?: string;
 }
 
-export class PortableLoader implements Loader {
+export class PortableLoader implements Loader, Disposable {
   #options: PortableLoaderOptions;
   #fetchOngoing = new Map<string, Promise<void>>();
-  #lockfile: Promise<deno.Lockfile | null> | deno.Lockfile | null | undefined;
+  #lockfile: Promise<WasmLockfile | null> | WasmLockfile | null | undefined;
 
   #fetchModules = new Map<string, Module>();
   #fetchRedirects = new Map<string, string>();
 
   constructor(options: PortableLoaderOptions) {
     this.#options = options;
+  }
+
+  [Symbol.dispose]() {
+    if (this.#lockfile != null && "free" in this.#lockfile) {
+      this.#lockfile.free();
+    }
   }
 
   async resolve(specifier: URL): Promise<LoaderResolution> {
@@ -97,27 +105,19 @@ export class PortableLoader implements Loader {
       );
     }
     const lockfile = this.#lockfile;
-    if (lockfile.version !== "3") {
-      throw new Error(
-        "Unsupported lockfile version: " + lockfile.version,
-      );
-    }
-
     // Look up the package + constraint in the lockfile.
     const id = `jsr:${jsrSpecifier.name}${
       jsrSpecifier.version ? `@${jsrSpecifier.version}` : ""
     }`;
-    const lockfileEntry = lockfile.packages?.specifiers?.[id];
-    if (!lockfileEntry) {
+    const resolvedVersion = lockfile.package_version(id);
+    if (!resolvedVersion) {
       throw new Error(`Specifier not found in lockfile: ${id}`);
     }
-    const lockfileEntryParsed = parseJsrSpecifier(new URL(lockfileEntry));
 
     // Load the JSR manifest to find the export path.
     const manifestUrl = new URL(
-      `./${lockfileEntryParsed.name}/${lockfileEntryParsed
-        .version!}_meta.json`,
-      JSR_REGISTRY_URL,
+      `./${jsrSpecifier.name}/${resolvedVersion}_meta.json`,
+      JSR_URL,
     );
     const manifest = await this.#loadRemote(manifestUrl.href);
     if (manifest.mediaType !== "Json") {
@@ -133,15 +133,14 @@ export class PortableLoader implements Loader {
     const exportPath = manifestJson.exports[exportEntry];
     if (!exportPath) {
       throw new Error(
-        `Package '${lockfileEntry}' has no export named '${exportEntry}'`,
+        `Package 'jsr:${jsrSpecifier.name}@${resolvedVersion}' has no export named '${exportEntry}'`,
       );
     }
 
     // Return the resolved URL.
     return new URL(
-      `./${lockfileEntryParsed.name}/${lockfileEntryParsed
-        .version!}/${exportPath}`,
-      JSR_REGISTRY_URL,
+      `./${jsrSpecifier.name}/${resolvedVersion}/${exportPath}`,
+      JSR_URL,
     );
   }
 
