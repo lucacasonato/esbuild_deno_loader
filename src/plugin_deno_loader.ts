@@ -64,14 +64,20 @@ export interface DenoLoaderPluginOptions {
    */
   lockPath?: string;
   /**
-   * Specify whether to generate and use a local `node_modules` directory when
-   * using the `native` loader. This is equivalent to the `--node-modules-dir`
-   * flag to the Deno executable.
+   * Specify how the loader should handle NPM packages. By default and if this
+   * option is set to `none`, the loader will use the global cache to resolve
+   * NPM packages. If this option is set to `manual`, the loader will use a
+   * manually managed `node_modules` directory. If this option is set to `auto`,
+   * the loader will use a local `node_modules` directory.
+   *
+   * If this option is not specified, the deno.json config file is consulted to
+   * determine which mode to use.
    *
    * This option is ignored when using the `portable` loader, as the portable
-   * loader always uses a local `node_modules` directory.
+   * loader always uses a manual `node_modules` directory (equivalent of
+   * `nodeModulesDir: "manual"`).
    */
-  nodeModulesDir?: boolean;
+  nodeModulesDir?: "auto" | "manual" | "none";
 }
 
 const LOADERS = ["native", "portable"] as const;
@@ -190,10 +196,6 @@ export function denoLoaderPlugin(
       const cwd = build.initialOptions.absWorkingDir ?? Deno.cwd();
 
       let nodeModulesDir: string | null = null;
-      if (options.nodeModulesDir) {
-        nodeModulesDir = join(cwd, "node_modules");
-      }
-
       let loaderImpl: Loader | undefined;
 
       const packageIdByNodeModules = new Map<string, string>();
@@ -202,6 +204,37 @@ export function denoLoaderPlugin(
         loaderImpl?.[Symbol.dispose]?.();
         loaderImpl = undefined;
         packageIdByNodeModules.clear();
+
+        let nodeModulesDirOpt: "auto" | "manual" | "none" | undefined =
+          options.nodeModulesDir;
+        let lockPath: string | undefined = options.lockPath;
+        if (
+          (nodeModulesDirOpt === undefined ||
+            (loader === "portable" && lockPath === undefined)) &&
+          options.configPath !== undefined
+        ) {
+          const config = await readDenoConfig(options.configPath);
+          if (nodeModulesDirOpt === undefined) {
+            nodeModulesDirOpt = config.nodeModulesDir;
+          }
+          if (
+            loader === "portable" &&
+            lockPath === undefined
+          ) {
+            if (typeof config.lock === "string") {
+              lockPath = join(dirname(options.configPath), config.lock);
+            } else if (config.lock !== false) {
+              lockPath = join(dirname(options.configPath), "deno.lock");
+            }
+          }
+        }
+        if (
+          nodeModulesDirOpt === "auto" ||
+          nodeModulesDirOpt === "manual"
+        ) {
+          nodeModulesDir = join(cwd, "node_modules");
+        }
+
         switch (loader) {
           case "native":
             loaderImpl = new NativeLoader({
@@ -210,20 +243,11 @@ export function denoLoaderPlugin(
                 config: options.configPath,
                 importMap: options.importMapURL,
                 lock: options.lockPath,
-                nodeModulesDir: options.nodeModulesDir,
+                nodeModulesDir: nodeModulesDirOpt,
               },
             });
             break;
           case "portable": {
-            let lockPath: string | undefined = options.lockPath;
-            if (lockPath === undefined && options.configPath !== undefined) {
-              const config = await readDenoConfig(options.configPath);
-              if (typeof config.lock === "string") {
-                lockPath = join(dirname(options.configPath), config.lock);
-              } else if (config.lock !== false) {
-                lockPath = join(dirname(options.configPath), "deno.lock");
-              }
-            }
             loaderImpl = new PortableLoader({
               lock: lockPath,
             });
@@ -244,7 +268,7 @@ export function denoLoaderPlugin(
               external: true,
             };
           }
-          if (nodeModulesDir) {
+          if (nodeModulesDir !== null) {
             return undefined;
           } else if (
             loaderImpl!.nodeModulesDirForPackage &&
@@ -297,7 +321,7 @@ export function denoLoaderPlugin(
             }
           } else {
             throw new Error(
-              `To use "npm:" specifiers, you must specify "nodeModulesDir: true", or use "loader: native".`,
+              `To use "npm:" specifiers, you must specify 'nodeModulesDir: "manual"', or use 'loader: "native"'.`,
             );
           }
         }
@@ -314,7 +338,7 @@ export function denoLoaderPlugin(
           }
           case "npm": {
             let resolveDir: string;
-            if (nodeModulesDir) {
+            if (nodeModulesDir !== null) {
               resolveDir = nodeModulesDir;
             } else if (loaderImpl!.nodeModulesDirForPackage) {
               resolveDir = await loaderImpl!.nodeModulesDirForPackage(
@@ -323,7 +347,7 @@ export function denoLoaderPlugin(
               packageIdByNodeModules.set(resolveDir, res.packageId);
             } else {
               throw new Error(
-                `To use "npm:" specifiers, you must specify "nodeModulesDir: true", or use "loader: native".`,
+                `To use "npm:" specifiers, you must specify 'nodeModulesDir: "manual"', or use 'loader: "native"'.`,
               );
             }
             const path = `${res.packageName}${res.path ?? ""}`;

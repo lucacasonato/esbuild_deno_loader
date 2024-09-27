@@ -47,7 +47,7 @@ interface InfoOutput {
   roots: string[];
   modules: ModuleEntry[];
   redirects: Record<string, string>;
-  npmPackages: Record<string, NpmPackage>;
+  npmPackages?: Record<string, NpmPackage>;
 }
 
 export type ModuleEntry =
@@ -102,7 +102,7 @@ export interface InfoOptions {
   config?: string;
   importMap?: string;
   lock?: string;
-  nodeModulesDir?: boolean;
+  nodeModulesDir?: "auto" | "manual" | "none";
 }
 
 let tmpDir: string | undefined;
@@ -135,8 +135,16 @@ async function info(
   } else if (!options.cwd) {
     opts.args.push("--no-lock");
   }
-  if (options.nodeModulesDir) {
-    opts.args.push("--node-modules-dir");
+  if (options.nodeModulesDir !== undefined) {
+    if (Deno.version.deno.startsWith("1.")) {
+      if (options.nodeModulesDir === "auto") {
+        opts.args.push("--node-modules-dir");
+      } else if (options.nodeModulesDir === "manual") {
+        opts.args.push("--unstable-byonm");
+      }
+    } else {
+      opts.args.push(`--node-modules-dir=${options.nodeModulesDir}`);
+    }
   }
   if (options.cwd) {
     opts.cwd = options.cwd;
@@ -182,7 +190,6 @@ export class InfoCache {
     if (entry === undefined) {
       throw new Error(`Unreachable: '${specifier}' loaded but not reachable`);
     }
-
     return entry;
   }
 
@@ -266,8 +273,10 @@ export class InfoCache {
     for (const [from, to] of Object.entries(redirects)) {
       this.#redirects.set(from, to);
     }
-    for (const [id, npmPackage] of Object.entries(npmPackages)) {
-      this.#npmPackages.set(id, npmPackage);
+    if (npmPackages !== undefined) {
+      for (const [id, npmPackage] of Object.entries(npmPackages)) {
+        this.#npmPackages.set(id, npmPackage);
+      }
     }
   }
 }

@@ -57,14 +57,20 @@ export interface DenoPluginsOptions {
    */
   lockPath?: string;
   /**
-   * Specify whether to generate and use a local `node_modules` directory when
-   * using the `native` loader. This is equivalent to the `--node-modules-dir`
-   * flag to the Deno executable.
+   * Specify how the loader should handle NPM packages. By default and if this
+   * option is set to `none`, the loader will use the global cache to resolve
+   * NPM packages. If this option is set to `manual`, the loader will use a
+   * manually managed `node_modules` directory. If this option is set to `auto`,
+   * the loader will use a local `node_modules` directory.
+   *
+   * If this option is not specified, the deno.json config file is consulted to
+   * determine which mode to use.
    *
    * This option is ignored when using the `portable` loader, as the portable
-   * loader always uses a local `node_modules` directory.
+   * loader always uses a manual `node_modules` directory (equivalent of
+   * `nodeModulesDir: "manual"`).
    */
-  nodeModulesDir?: boolean;
+  nodeModulesDir?: "auto" | "manual" | "none";
 }
 
 /**

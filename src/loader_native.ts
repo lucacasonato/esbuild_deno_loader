@@ -1,6 +1,7 @@
 import type * as esbuild from "./esbuild_types.ts";
 import { dirname, fromFileUrl, join } from "@std/path";
 import { encodeBase32 } from "@std/encoding/base32";
+import { lastIndexOfNeedle } from "@std/bytes";
 import * as deno from "./deno.ts";
 import { rootInfo, type RootInfoOutput } from "./deno.ts";
 import {
@@ -13,19 +14,36 @@ import {
 
 let ROOT_INFO_OUTPUT: Promise<RootInfoOutput> | RootInfoOutput | undefined;
 
+export const DENO_CACHE_METADATA = new TextEncoder()
+  .encode("\n// denoCacheMetadata=");
+
 export interface NativeLoaderOptions {
   infoOptions?: deno.InfoOptions;
 }
 
 export class NativeLoader implements Loader {
+  #nodeModulesDirManual: boolean;
   #infoCache: deno.InfoCache;
   #linkDirCache: Map<string, string> = new Map(); // mapping from package id -> link dir
 
   constructor(options: NativeLoaderOptions) {
+    this.#nodeModulesDirManual =
+      options.infoOptions?.nodeModulesDir === "manual";
     this.#infoCache = new deno.InfoCache(options.infoOptions);
   }
 
   async resolve(specifier: URL): Promise<LoaderResolution> {
+    // Workaround for https://github.com/denoland/deno/issues/25903
+    if (this.#nodeModulesDirManual && specifier.protocol === "npm:") {
+      const npmSpecifier = parseNpmSpecifier(specifier);
+      return {
+        kind: "npm",
+        packageId: "",
+        packageName: npmSpecifier.name,
+        path: npmSpecifier.path ?? "",
+      };
+    }
+
     const entry = await this.#infoCache.get(specifier.href);
     if ("error" in entry) throw new Error(entry.error);
 
@@ -66,7 +84,11 @@ export class NativeLoader implements Loader {
     if (!entry.local) throw new Error("Module not downloaded yet.");
     const loader = mediaTypeToLoader(entry.mediaType);
 
-    const contents = await Deno.readFile(entry.local);
+    let contents = await Deno.readFile(entry.local);
+    const denoCacheMetadata = lastIndexOfNeedle(contents, DENO_CACHE_METADATA);
+    if (denoCacheMetadata !== -1) {
+      contents = contents.subarray(0, denoCacheMetadata);
+    }
     const res: esbuild.OnLoadResult = { contents, loader };
     if (specifier.protocol === "file:") {
       res.watchFiles = [fromFileUrl(specifier)];
