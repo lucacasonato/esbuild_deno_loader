@@ -884,6 +884,42 @@ Deno.test("custom plugin for scheme with import map", async (t) => {
   });
 });
 
+const TXT_PLUGIN: esbuildNative.Plugin = {
+  name: "computed",
+  setup(build) {
+    build.onLoad({ filter: /.*\.txt$/, namespace: "file" }, async (args) => {
+      const url = esbuildResolutionToURL(args);
+      const file = await Deno.readTextFile(new URL(url));
+      return {
+        contents: `export default ${JSON.stringify(file)};`,
+        loader: "js",
+      };
+    });
+  },
+};
+
+Deno.test("txt plugin", async (t) => {
+  +await testLoader(t, LOADERS, async (esbuild, loader) => {
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [
+        denoResolverPlugin(),
+        TXT_PLUGIN,
+        denoLoaderPlugin({ loader }),
+      ],
+      entryPoints: ["./testdata/hello.txt"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: hello } = await import(dataURL);
+    assertEquals(hello, "Hello World!");
+  });
+});
+
 Deno.test("uncached data url", async (t) => {
   await testLoader(t, LOADERS, async (esbuild, loader) => {
     const configPath = join(Deno.cwd(), "testdata", "config_ref.json");

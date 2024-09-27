@@ -144,7 +144,7 @@ export class PortableLoader implements Loader, Disposable {
     );
   }
 
-  async loadEsm(url: URL): Promise<esbuild.OnLoadResult> {
+  async loadEsm(url: URL): Promise<esbuild.OnLoadResult | undefined> {
     let module: Module;
     switch (url.protocol) {
       case "file:": {
@@ -162,6 +162,7 @@ export class PortableLoader implements Loader, Disposable {
     }
 
     const loader = mediaTypeToLoader(module.mediaType);
+    if (loader === null) return undefined;
 
     const res: esbuild.OnLoadResult = { contents: module.data, loader };
     if (url.protocol === "file:") {

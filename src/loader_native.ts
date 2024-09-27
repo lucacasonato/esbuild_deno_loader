@@ -8,6 +8,7 @@ import {
   type Loader,
   type LoaderResolution,
   mapContentType,
+  mediaTypeFromSpecifier,
   mediaTypeToLoader,
   parseNpmSpecifier,
 } from "./shared.ts";
@@ -45,7 +46,15 @@ export class NativeLoader implements Loader {
     }
 
     const entry = await this.#infoCache.get(specifier.href);
-    if ("error" in entry) throw new Error(entry.error);
+    if ("error" in entry) {
+      if (
+        specifier.protocol === "file:" &&
+        mediaTypeFromSpecifier(specifier) === "Unknown"
+      ) {
+        return { kind: "esm", specifier: new URL(entry.specifier) };
+      }
+      throw new Error(entry.error);
+    }
 
     if (entry.kind === "npm") {
       // TODO(lucacasonato): remove parsing once https://github.com/denoland/deno/issues/18043 is resolved
@@ -66,23 +75,28 @@ export class NativeLoader implements Loader {
     return { kind: "esm", specifier: new URL(entry.specifier) };
   }
 
-  async loadEsm(specifier: URL): Promise<esbuild.OnLoadResult> {
+  async loadEsm(specifier: URL): Promise<esbuild.OnLoadResult | undefined> {
     if (specifier.protocol === "data:") {
       const resp = await fetch(specifier);
       const contents = new Uint8Array(await resp.arrayBuffer());
       const contentType = resp.headers.get("content-type");
       const mediaType = mapContentType(specifier, contentType);
       const loader = mediaTypeToLoader(mediaType);
+      if (loader === null) return undefined;
       return { contents, loader };
     }
     const entry = await this.#infoCache.get(specifier.href);
-    if ("error" in entry) throw new Error(entry.error);
+    if (
+      "error" in entry && specifier.protocol !== "file:" &&
+      mediaTypeFromSpecifier(specifier) !== "Unknown"
+    ) throw new Error(entry.error);
 
     if (!("local" in entry)) {
       throw new Error("[unreachable] Not an ESM module.");
     }
     if (!entry.local) throw new Error("Module not downloaded yet.");
     const loader = mediaTypeToLoader(entry.mediaType);
+    if (loader === null) return undefined;
 
     let contents = await Deno.readFile(entry.local);
     const denoCacheMetadata = lastIndexOfNeedle(contents, DENO_CACHE_METADATA);

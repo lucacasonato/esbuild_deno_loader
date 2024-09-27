@@ -375,7 +375,7 @@ export function denoLoaderPlugin(
 
       function onLoad(
         args: esbuild.OnLoadArgs,
-      ): Promise<esbuild.OnLoadResult | null> | undefined {
+      ): Promise<esbuild.OnLoadResult | null | undefined> | undefined {
         if (args.namespace === "file" && isInNodeModules(args.path)) {
           // inside node_modules, just let esbuild do it's thing
           return undefined;
