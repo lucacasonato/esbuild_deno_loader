@@ -103,6 +103,7 @@ export interface InfoOptions {
   importMap?: string;
   lock?: string;
   nodeModulesDir?: boolean;
+  quiet?: boolean;
 }
 
 let tmpDir: string | undefined;
@@ -137,6 +138,9 @@ async function info(
   }
   if (options.nodeModulesDir) {
     opts.args.push("--node-modules-dir");
+  }
+  if (options.quiet) {
+    opts.args.push("--quiet");
   }
   if (options.cwd) {
     opts.cwd = options.cwd;
