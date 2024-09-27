@@ -95,6 +95,7 @@ export interface NpmPackage {
   name: string;
   version: string;
   dependencies: string[];
+  registryUrl?: string;
 }
 
 export interface InfoOptions {
