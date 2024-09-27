@@ -6,7 +6,7 @@ import type * as esbuild from "./esbuild_types.ts";
 
 export interface Loader {
   resolve(specifier: URL): Promise<LoaderResolution>;
-  loadEsm(specifier: URL): Promise<esbuild.OnLoadResult>;
+  loadEsm(specifier: URL): Promise<esbuild.OnLoadResult | undefined>;
 
   packageIdFromNameInPackage?(
     name: string,
@@ -39,7 +39,7 @@ export interface LoaderResolutionNode {
   path: string;
 }
 
-export function mediaTypeToLoader(mediaType: MediaType): esbuild.Loader {
+export function mediaTypeToLoader(mediaType: MediaType): esbuild.Loader | null {
   switch (mediaType) {
     case "JavaScript":
     case "Mjs":
@@ -54,7 +54,7 @@ export function mediaTypeToLoader(mediaType: MediaType): esbuild.Loader {
     case "Json":
       return "json";
     default:
-      throw new Error(`Unhandled media type ${mediaType}.`);
+      return null;
   }
 }
 
@@ -242,7 +242,7 @@ function mapJsLikeExtension(
   }
 }
 
-function mediaTypeFromSpecifier(specifier: URL): MediaType {
+export function mediaTypeFromSpecifier(specifier: URL): MediaType {
   const path = specifier.pathname;
   switch (extname(path)) {
     case "":
