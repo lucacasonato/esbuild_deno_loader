@@ -6,13 +6,12 @@
     "./esbuild_types": "./src/esbuild_types.ts"
   },
   "imports": {
-    "@std/assert": "jsr:@std/assert@0.213",
+    "@std/assert": "jsr:@std/assert@^1.0.6",
     "@std/bytes": "jsr:@std/bytes@^1.0.2",
-    "@std/encoding": "jsr:@std/encoding@0.213",
-    "@std/encoding/base32": "jsr:@std/encoding@0.213/base32",
-    "@std/fs": "jsr:@std/fs@0.213",
-    "@std/jsonc": "jsr:@std/jsonc@0.213",
-    "@std/path": "jsr:@std/path@0.213",
+    "@std/encoding": "jsr:@std/encoding@^1.0.5",
+    "@std/fs": "jsr:@std/fs@^1.0.4",
+    "@std/jsonc": "jsr:@std/jsonc@^1.0.1",
+    "@std/path": "jsr:@std/path@^1.0.6",
     "x/importmap": "./vendor/x/importmap/mod.ts",
     "x/importmap/_util.ts": "./vendor/x/importmap/_util.ts"
   },
