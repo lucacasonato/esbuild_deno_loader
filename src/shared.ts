@@ -13,6 +13,8 @@ export interface Loader {
     parentPackageId: string,
   ): string | null;
   nodeModulesDirForPackage?(npmPackageId?: string): Promise<string>;
+
+  [Symbol.dispose]?(): void;
 }
 
 export type LoaderResolution =

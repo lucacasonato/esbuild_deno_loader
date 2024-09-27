@@ -17,7 +17,7 @@ interface Module {
   data: Uint8Array;
 }
 
-const JSR_REGISTRY_URL = Deno.env.get("DENO_REGISTRY_URL") ?? "https://jsr.io";
+const JSR_URL = Deno.env.get("JSR_URL") ?? "https://jsr.io";
 
 async function readLockfile(path: string): Promise<WasmLockfile | null> {
   try {
@@ -117,7 +117,7 @@ export class PortableLoader implements Loader, Disposable {
     // Load the JSR manifest to find the export path.
     const manifestUrl = new URL(
       `./${jsrSpecifier.name}/${resolvedVersion}_meta.json`,
-      JSR_REGISTRY_URL,
+      JSR_URL,
     );
     const manifest = await this.#loadRemote(manifestUrl.href);
     if (manifest.mediaType !== "Json") {
@@ -140,7 +140,7 @@ export class PortableLoader implements Loader, Disposable {
     // Return the resolved URL.
     return new URL(
       `./${jsrSpecifier.name}/${resolvedVersion}/${exportPath}`,
-      JSR_REGISTRY_URL,
+      JSR_URL,
     );
   }
 

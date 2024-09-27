@@ -194,11 +194,13 @@ export function denoLoaderPlugin(
         nodeModulesDir = join(cwd, "node_modules");
       }
 
-      let loaderImpl: Loader;
+      let loaderImpl: Loader | undefined;
 
       const packageIdByNodeModules = new Map<string, string>();
 
       build.onStart(async function onStart() {
+        loaderImpl?.[Symbol.dispose]?.();
+        loaderImpl = undefined;
         packageIdByNodeModules.clear();
         switch (loader) {
           case "native":
@@ -245,8 +247,8 @@ export function denoLoaderPlugin(
           if (nodeModulesDir) {
             return undefined;
           } else if (
-            loaderImpl.nodeModulesDirForPackage &&
-            loaderImpl.packageIdFromNameInPackage
+            loaderImpl!.nodeModulesDirForPackage &&
+            loaderImpl!.packageIdFromNameInPackage
           ) {
             let parentPackageId: string | undefined;
             let path = args.importer;
@@ -279,12 +281,12 @@ export function denoLoaderPlugin(
                 packageName = name;
                 pathParts = rest;
               }
-              const packageId = loaderImpl.packageIdFromNameInPackage(
+              const packageId = loaderImpl!.packageIdFromNameInPackage(
                 packageName,
                 parentPackageId,
               );
               const id = packageId ?? parentPackageId;
-              const resolveDir = await loaderImpl.nodeModulesDirForPackage(id);
+              const resolveDir = await loaderImpl!.nodeModulesDirForPackage(id);
               packageIdByNodeModules.set(resolveDir, id);
               const path = [packageName, ...pathParts].join("/");
               return await build.resolve(path, {
@@ -303,7 +305,7 @@ export function denoLoaderPlugin(
 
         // Once we have an absolute path, let the loader resolver figure out
         // what to do with it.
-        const res = await loaderImpl.resolve(specifier);
+        const res = await loaderImpl!.resolve(specifier);
 
         switch (res.kind) {
           case "esm": {
@@ -314,8 +316,8 @@ export function denoLoaderPlugin(
             let resolveDir: string;
             if (nodeModulesDir) {
               resolveDir = nodeModulesDir;
-            } else if (loaderImpl.nodeModulesDirForPackage) {
-              resolveDir = await loaderImpl.nodeModulesDirForPackage(
+            } else if (loaderImpl!.nodeModulesDirForPackage) {
+              resolveDir = await loaderImpl!.nodeModulesDirForPackage(
                 res.packageId,
               );
               packageIdByNodeModules.set(resolveDir, res.packageId);
@@ -355,7 +357,7 @@ export function denoLoaderPlugin(
           return undefined;
         }
         const specifier = esbuildResolutionToURL(args);
-        return loaderImpl.loadEsm(specifier);
+        return loaderImpl!.loadEsm(specifier);
       }
       // TODO(lucacasonato): once https://github.com/evanw/esbuild/pull/2968 is fixed, remove the catch all "file" handler
       build.onLoad({ filter: /.*/, namespace: "file" }, onLoad);
