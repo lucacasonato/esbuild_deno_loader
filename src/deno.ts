@@ -111,8 +111,12 @@ async function info(
   specifier: string,
   options: InfoOptions,
 ): Promise<InfoOutput> {
+  const args = ["info", "--json"];
+  if (!Deno.version.deno.startsWith("1.")) {
+    args.push("--allow-import");
+  }
   const opts = {
-    args: ["info", "--json", "--allow-import"],
+    args,
     cwd: undefined as string | undefined,
     env: { DENO_NO_PACKAGE_JSON: "true" } as Record<string, string>,
     stdout: "piped",
