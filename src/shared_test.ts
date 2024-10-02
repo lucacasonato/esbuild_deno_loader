@@ -3,6 +3,7 @@ import {
   type NpmSpecifier,
   parseJsrSpecifier,
   parseNpmSpecifier,
+  readDenoConfig,
 } from "./shared.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 import type { JsrSpecifier } from "./shared.ts";
@@ -216,6 +217,17 @@ Deno.test("expandEmbeddedImportMap", () => {
 
       "preact-render-to-string": "jsr:preact-render-to-string",
       "preact-render-to-string/": "jsr:preact-render-to-string2/",
+    },
+  });
+});
+
+Deno.test("readDenoConfig", async () => {
+  const config = await readDenoConfig(
+    "https://raw.githubusercontent.com/lucacasonato/esbuild_deno_loader/refs/heads/main/testdata/config_inline.jsonc",
+  );
+  assertEquals(config, {
+    imports: {
+      "mod": "./mod.ts",
     },
   });
 });
