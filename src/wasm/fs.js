@@ -24,5 +24,3 @@ export function read_dir(path) {
     };
   }).toArray();
 }
-
-

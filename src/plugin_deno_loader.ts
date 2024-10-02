@@ -30,8 +30,9 @@ export interface DenoLoaderPluginOptions {
    * from the cache. When specifying `loader: "native"`, this option must be in
    * sync with the `configPath` option for `denoResolverPlugin`.
    *
-   * If this option is not specified, the loader will probe for a deno.json
-   * config file based on the entrypoints or the current working directory.
+   * If not specified, the plugin will attempt to find the nearest deno.json and
+   * use that. If the deno.json is part of a workspace, the plugin will
+   * automatically find the workspace root.
    */
   configPath?: string;
   /**
