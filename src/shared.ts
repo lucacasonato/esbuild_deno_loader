@@ -109,7 +109,18 @@ interface DenoConfig {
 }
 
 export async function readDenoConfig(path: string): Promise<DenoConfig> {
-  const file = await Deno.readTextFile(path);
+  let file: string;
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    const res = await fetch(path);
+    if (!res.ok) {
+      throw new Error(
+        `Failed to fetch Deno config at ${path}: ${res.statusText}`,
+      );
+    }
+    file = await res.text();
+  } else {
+    file = await Deno.readTextFile(path);
+  }
   const res = JSONC.parse(file);
   if (typeof res !== "object" || res === null || Array.isArray(res)) {
     throw new Error(`Deno config at ${path} must be an object`);
