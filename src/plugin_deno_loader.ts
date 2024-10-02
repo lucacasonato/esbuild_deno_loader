@@ -2,12 +2,11 @@ import type * as esbuild from "./esbuild_types.ts";
 import { dirname, join } from "@std/path";
 import { NativeLoader } from "./loader_native.ts";
 import { PortableLoader } from "./loader_portable.ts";
-import { isInNodeModules } from "./shared.ts";
+import { findWorkspace, isInNodeModules } from "./shared.ts";
 import {
   esbuildResolutionToURL,
   isNodeModulesResolution,
   type Loader,
-  readDenoConfig,
   urlToEsbuildResolution,
 } from "./shared.ts";
 
@@ -30,6 +29,9 @@ export interface DenoLoaderPluginOptions {
    * used when specifying `loader: "native"` to more efficiently load modules
    * from the cache. When specifying `loader: "native"`, this option must be in
    * sync with the `configPath` option for `denoResolverPlugin`.
+   *
+   * If this option is not specified, the loader will probe for a deno.json
+   * config file based on the entrypoints or the current working directory.
    */
   configPath?: string;
   /**
@@ -71,7 +73,9 @@ export interface DenoLoaderPluginOptions {
    * the loader will use a local `node_modules` directory.
    *
    * If this option is not specified, the deno.json config file is consulted to
-   * determine which mode to use.
+   * determine which mode to use. If no config file is present, or the config
+   * file does not specify this option, the default is `none` if no package.json
+   * is present, and `auto` if a package.json is present.
    *
    * This option is ignored when using the `portable` loader, as the portable
    * loader always uses a manual `node_modules` directory (equivalent of
@@ -200,7 +204,7 @@ export function denoLoaderPlugin(
 
       const packageIdByNodeModules = new Map<string, string>();
 
-      build.onStart(async function onStart() {
+      build.onStart(function onStart() {
         loaderImpl?.[Symbol.dispose]?.();
         loaderImpl = undefined;
         packageIdByNodeModules.clear();
@@ -210,22 +214,25 @@ export function denoLoaderPlugin(
         let lockPath: string | undefined = options.lockPath;
         if (
           (nodeModulesDirOpt === undefined ||
-            (loader === "portable" && lockPath === undefined)) &&
-          options.configPath !== undefined
+            (loader === "portable" && lockPath === undefined))
         ) {
-          const config = await readDenoConfig(options.configPath);
-          if (nodeModulesDirOpt === undefined) {
-            nodeModulesDirOpt = config.nodeModulesDir;
-          }
-          if (
-            loader === "portable" &&
-            lockPath === undefined
-          ) {
-            if (typeof config.lock === "string") {
-              lockPath = join(dirname(options.configPath), config.lock);
-            } else if (config.lock !== false) {
-              lockPath = join(dirname(options.configPath), "deno.lock");
+          const workspace = findWorkspace(
+            cwd,
+            build.initialOptions.entryPoints,
+            options.configPath,
+          );
+          try {
+            if (nodeModulesDirOpt === undefined) {
+              nodeModulesDirOpt = workspace.node_modules_dir() as
+                | "auto"
+                | "manual"
+                | "none";
             }
+            if (loader === "portable" && lockPath === undefined) {
+              lockPath = workspace.lock_path();
+            }
+          } finally {
+            workspace.free();
           }
         }
         if (

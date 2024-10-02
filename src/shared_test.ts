@@ -1,12 +1,10 @@
 import {
-  expandEmbeddedImportMap,
   type NpmSpecifier,
   parseJsrSpecifier,
   parseNpmSpecifier,
 } from "./shared.ts";
 import { assertEquals, assertThrows } from "@std/assert";
 import type { JsrSpecifier } from "./shared.ts";
-import type { ImportMap } from "x/importmap";
 
 interface NpmSpecifierTestCase extends NpmSpecifier {
   specifier: string;
@@ -191,31 +189,4 @@ Deno.test("parseJsrSpecifier", async (t) => {
       );
     });
   }
-});
-
-Deno.test("expandEmbeddedImportMap", () => {
-  const importMap: ImportMap = {
-    imports: {
-      "@std/path": "jsr:@std/path@1.2.3",
-      "preact": "npm:preact@^10.0.0",
-      "preact2": "npm:/preact2@^10.0.0",
-
-      "preact-render-to-string": "jsr:preact-render-to-string",
-      "preact-render-to-string/": "jsr:preact-render-to-string2/",
-    },
-  };
-  expandEmbeddedImportMap(importMap);
-  assertEquals(importMap, {
-    imports: {
-      "@std/path": "jsr:@std/path@1.2.3",
-      "@std/path/": "jsr:/@std/path@1.2.3/",
-      "preact": "npm:preact@^10.0.0",
-      "preact/": "npm:/preact@^10.0.0/",
-      "preact2": "npm:/preact2@^10.0.0",
-      "preact2/": "npm:/preact2@^10.0.0/",
-
-      "preact-render-to-string": "jsr:preact-render-to-string",
-      "preact-render-to-string/": "jsr:preact-render-to-string2/",
-    },
-  });
 });

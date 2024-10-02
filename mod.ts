@@ -32,6 +32,10 @@ export interface DenoPluginsOptions {
   /**
    * Specify the path to a deno.json config file to use. This is equivalent to
    * the `--config` flag to the Deno executable. This path must be absolute.
+   * 
+   * If not specified, the plugin will attempt to find the nearest deno.json and
+   * use that. If the deno.json is part of a workspace, the plugin will
+   * automatically find the workspace root. 
    */
   configPath?: string;
   /**
