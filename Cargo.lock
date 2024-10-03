@@ -66,12 +66,13 @@ checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
 
 [[package]]
 name = "deno_config"
-version = "0.36.0"
+version = "0.37.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1898a0a32f51a3c89553d1f41a241ed9e69f7fefb72e48a7c47f6dbcbf33973"
+checksum = "3cb7a1723676fba5964f8d7441d8b53748f9e74d6d4241be7de9730da021859a"
 dependencies = [
  "anyhow",
  "deno_package_json",
+ "deno_path_util",
  "deno_semver",
  "glob",
  "ignore",
@@ -109,6 +110,17 @@ dependencies = [
  "indexmap",
  "serde",
  "serde_json",
+ "thiserror",
+ "url",
+]
+
+[[package]]
+name = "deno_path_util"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4889646c1ce8437a6fde3acb057fd7e2d039e62c61f5063fc125ed1ede114dc6"
+dependencies = [
+ "percent-encoding",
  "thiserror",
  "url",
 ]

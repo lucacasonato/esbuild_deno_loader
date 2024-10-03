@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib"]
 
 [dependencies]
-deno_config = "0.36.0"
+deno_config = "0.37.1"
 deno_lockfile = "0.23.1"
 deno_package_json = "0.1.2"
 deno_semver = "0.5.13"
