@@ -62,7 +62,7 @@ impl WasmWorkspace {
     is_config_file: bool,
   ) -> Result<WasmWorkspace, JsError> {
     let entrypoints: Vec<_> =
-      entrypoints.into_iter().map(PathBuf::from).collect();
+      entrypoints.into_iter().map(|s|PathBuf::from(s.replace('\\', "/"))).collect();
     let opts = WorkspaceDiscoverOptions {
       fs: &WasmFs,
       deno_json_cache: None,
@@ -115,10 +115,10 @@ impl WasmWorkspace {
   #[wasm_bindgen]
   pub fn resolver(
     &self,
-    import_map: Option<String>,
+    import_map_url: Option<String>,
     import_map_value: JsValue,
   ) -> Result<WasmWorkspaceResolver, JsError> {
-    let specified_import_map = if let Some(import_map_url) = import_map {
+    let specified_import_map = if let Some(import_map_url) = import_map_url {
       let base_url = Url::parse(&import_map_url)?;
       let value: serde_json::Value =
         serde_wasm_bindgen::from_value(import_map_value)?;
