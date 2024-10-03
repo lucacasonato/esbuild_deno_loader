@@ -1,8 +1,8 @@
-import { extname, fromFileUrl, SEPARATOR, toFileUrl } from "@std/path";
-import * as JSONC from "@std/jsonc";
-import type { ImportMap } from "x/importmap";
+import { dirname, extname, fromFileUrl, SEPARATOR, toFileUrl } from "@std/path";
 import type { MediaType } from "./deno.ts";
 import type * as esbuild from "./esbuild_types.ts";
+import { instantiate, WasmWorkspace } from "./wasm/loader.generated.js";
+import type { BuildOptions } from "./esbuild_types.ts";
 
 export interface Loader {
   resolve(specifier: URL): Promise<LoaderResolution>;
@@ -15,6 +15,62 @@ export interface Loader {
   nodeModulesDirForPackage?(npmPackageId?: string): Promise<string>;
 
   [Symbol.dispose]?(): void;
+}
+
+export function findWorkspace(
+  cwd: string,
+  entryPoints: BuildOptions["entryPoints"],
+  configPath: string | undefined,
+): WasmWorkspace {
+  const cwdFileUrl = toFileUrl(cwd);
+  if (!cwdFileUrl.pathname.endsWith("/")) {
+    cwdFileUrl.pathname += "/";
+  }
+
+  let entrypoints: Array<string>;
+  let isConfigFile = false;
+  if (configPath !== undefined) {
+    entrypoints = [configPath];
+    isConfigFile = true;
+  } else if (Array.isArray(entryPoints)) {
+    entrypoints = entryPoints.flatMap(
+      (entrypoint) => {
+        let specifier: string;
+
+        if (typeof entrypoint === "string") {
+          specifier = entrypoint;
+        } else {
+          specifier = entrypoint.in;
+        }
+
+        const url = new URL(specifier, cwdFileUrl.href);
+        if (url.protocol === "file:") {
+          return [dirname(fromFileUrl(url.href))];
+        } else {
+          return [];
+        }
+      },
+    );
+  } else if (typeof entryPoints === "object") {
+    entrypoints = Object.values(entryPoints).flatMap(
+      (entrypoint) => {
+        const url = new URL(entrypoint, cwdFileUrl.href);
+        if (url.protocol === "file:") {
+          return [dirname(fromFileUrl(url.href))];
+        } else {
+          return [];
+        }
+      },
+    );
+  } else {
+    entrypoints = [];
+  }
+  if (entrypoints.length === 0) {
+    entrypoints = [cwd];
+  }
+
+  instantiate();
+  return WasmWorkspace.discover(entrypoints, isConfigFile);
 }
 
 export type LoaderResolution =
@@ -98,68 +154,6 @@ export function esbuildResolutionToURL(specifier: EsbuildResolution): URL {
   }
 
   return new URL(`${specifier.namespace}:${specifier.path}`);
-}
-
-interface DenoConfig {
-  imports?: unknown;
-  scopes?: unknown;
-  lock?: boolean | string;
-  importMap?: string;
-  nodeModulesDir?: "auto" | "manual" | "none";
-}
-
-export async function readDenoConfig(path: string): Promise<DenoConfig> {
-  const file = await Deno.readTextFile(path);
-  const res = JSONC.parse(file);
-  if (typeof res !== "object" || res === null || Array.isArray(res)) {
-    throw new Error(`Deno config at ${path} must be an object`);
-  }
-  if (
-    "imports" in res &&
-    (typeof res.imports !== "object" || res.imports === null ||
-      Array.isArray(res.imports))
-  ) {
-    throw new Error(`Deno config at ${path} has invalid "imports" key`);
-  }
-  if (
-    "scopes" in res &&
-    (typeof res.scopes !== "object" || res.scopes === null ||
-      Array.isArray(res.scopes))
-  ) {
-    throw new Error(`Deno config at ${path} has invalid "scopes" key`);
-  }
-  if (
-    "lock" in res &&
-    typeof res.lock !== "boolean" && typeof res.lock !== "string"
-  ) {
-    throw new Error(`Deno config at ${path} has invalid "lock" key`);
-  }
-  if ("importMap" in res && typeof res.importMap !== "string") {
-    throw new Error(`Deno config at ${path} has invalid "importMap" key`);
-  }
-  if (typeof res.nodeModulesDir === "boolean") {
-    if (res.nodeModulesDir) {
-      res.nodeModulesDir = "auto";
-    } else {
-      delete res.nodeModulesDir;
-    }
-  }
-  if ("nodeModulesDir" in res) {
-    if (typeof res.nodeModulesDir !== "string") {
-      throw new Error(
-        `Deno config at ${path} has invalid "nodeModulesDir" key`,
-      );
-    }
-    if (
-      res.nodeModulesDir !== "auto" && res.nodeModulesDir !== "manual" &&
-      res.nodeModulesDir !== "none"
-    ) {
-      throw new Error(
-        `Deno config at ${path} has invalid "nodeModulesDir" key, must be "auto", "manual", or "none"`,
-      );
-    }
-  }
-  return res;
 }
 
 export function mapContentType(
@@ -374,30 +368,6 @@ export function parseJsrSpecifier(specifier: URL): JsrSpecifier {
       : path.slice(versionStartIndex + 1, pathStartIndex),
     path: pathStartIndex === path.length ? null : path.slice(pathStartIndex),
   };
-}
-
-// For all pairs in `imports` where the specifier does not end in a /, and the
-// target starts with `jsr:` or `npm:`, and no entry exists for `${specifier}/`,
-// add an entry for `${specifier}/` pointing to the target with a / appended,
-// and a `/` appended to the scheme, if none is present there.
-export function expandEmbeddedImportMap(importMap: ImportMap) {
-  if (importMap.imports !== undefined) {
-    const newImports: [string, string | null][] = [];
-    for (const [specifier, target] of Object.entries(importMap.imports)) {
-      newImports.push([specifier, target]);
-      if (
-        !specifier.endsWith("/") && target &&
-        (target.startsWith("jsr:") || target.startsWith("npm:")) &&
-        !importMap.imports[specifier + "/"]
-      ) {
-        const newSpecifier = specifier + "/";
-        const newTarget = target.slice(0, 4) + "/" +
-          target.slice(target[4] === "/" ? 5 : 4) + "/";
-        newImports.push([newSpecifier, newTarget]);
-      }
-    }
-    importMap.imports = Object.fromEntries(newImports);
-  }
 }
 
 const SLASH_NODE_MODULES_SLASH = `${SEPARATOR}node_modules${SEPARATOR}`;

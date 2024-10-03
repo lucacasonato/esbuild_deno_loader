@@ -10,10 +10,7 @@
     "@std/bytes": "jsr:@std/bytes@^1.0.2",
     "@std/encoding": "jsr:@std/encoding@^1.0.5",
     "@std/fs": "jsr:@std/fs@^1.0.4",
-    "@std/jsonc": "jsr:@std/jsonc@^1.0.1",
-    "@std/path": "jsr:@std/path@^1.0.6",
-    "x/importmap": "./vendor/x/importmap/mod.ts",
-    "x/importmap/_util.ts": "./vendor/x/importmap/_util.ts"
+    "@std/path": "jsr:@std/path@^1.0.6"
   },
   "lock": false,
   "tasks": {
@@ -29,7 +26,8 @@
       "testdata/",
       "*_test.ts",
       "!src/wasm/loader.generated.d.ts",
-      "!src/wasm/loader.generated.js"
+      "!src/wasm/loader.generated.js",
+      "!src/wasm/snippets/"
     ]
   }
 }

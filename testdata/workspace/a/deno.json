@@ -1,0 +1,7 @@
+{
+  "name": "@test/a",
+  "version": "0.0.1",
+  "imports": {
+    "@test/b": "jsr:@test/b"
+  }
+}

@@ -1,24 +1,21 @@
 import type * as esbuild from "./esbuild_types.ts";
 import { toFileUrl } from "@std/path";
 import {
-  type ImportMap,
-  resolveImportMap,
-  resolveModuleSpecifier,
-} from "x/importmap";
-import type { Scopes, SpecifierMap } from "x/importmap/_util.ts";
-import {
-  expandEmbeddedImportMap,
+  findWorkspace,
   isNodeModulesResolution,
-  readDenoConfig,
   urlToEsbuildResolution,
 } from "./shared.ts";
-export type { ImportMap, Scopes, SpecifierMap };
+import type { WasmWorkspaceResolver } from "./wasm/loader.generated.js";
 
 /** Options for the {@link denoResolverPlugin}. */
 export interface DenoResolverPluginOptions {
   /**
    * Specify the path to a deno.json config file to use. This is equivalent to
    * the `--config` flag to the Deno executable. This path must be absolute.
+   *
+   * If not specified, the plugin will attempt to find the nearest deno.json and
+   * use that. If the deno.json is part of a workspace, the plugin will
+   * automatically find the workspace root.
    */
   configPath?: string;
   /**
@@ -45,7 +42,7 @@ export function denoResolverPlugin(
   return {
     name: "deno-resolver",
     setup(build) {
-      let importMap: ImportMap | null = null;
+      let resolver: WasmWorkspaceResolver | null = null;
 
       const externalRegexps: RegExp[] = (build.initialOptions.external ?? [])
         .map((external) => {
@@ -59,40 +56,27 @@ export function denoResolverPlugin(
         });
 
       build.onStart(async function onStart() {
-        let importMapURL: string | undefined;
+        const cwd = build.initialOptions.absWorkingDir ?? Deno.cwd();
 
-        // If no import map URL is specified, and a config is specified, we try
-        // to get an import map from the config.
-        if (
-          options.importMapURL === undefined && options.configPath !== undefined
-        ) {
-          const config = await readDenoConfig(options.configPath);
-          // If `imports` or `scopes` are specified, use the config file as the
-          // import map directly.
-          if (config.imports !== undefined || config.scopes !== undefined) {
-            const configImportMap = {
-              imports: config.imports,
-              scopes: config.scopes,
-            } as ImportMap;
-            expandEmbeddedImportMap(configImportMap);
-            importMap = resolveImportMap(
-              configImportMap,
-              toFileUrl(options.configPath),
-            );
-          } else if (config.importMap !== undefined) {
-            // Otherwise, use the import map URL specified in the config file
-            importMapURL =
-              new URL(config.importMap, toFileUrl(options.configPath)).href;
+        const workspace = findWorkspace(
+          cwd,
+          build.initialOptions.entryPoints,
+          options.configPath,
+        );
+        try {
+          const importMapURL: string | undefined = options.importMapURL;
+          let importMapValue: unknown | undefined;
+          if (importMapURL !== undefined) {
+            // If we have an import map URL, fetch it and parse it.
+            const resp = await fetch(importMapURL);
+            importMapValue = await resp.json();
           }
-        } else if (options.importMapURL !== undefined) {
-          importMapURL = options.importMapURL;
-        }
 
-        // If we have an import map URL, fetch it and parse it.
-        if (importMapURL) {
-          const resp = await fetch(importMapURL);
-          const data = await resp.json();
-          importMap = resolveImportMap(data, new URL(resp.url));
+          resolver?.free();
+          resolver = null;
+          resolver = workspace.resolver(importMapURL, importMapValue);
+        } finally {
+          workspace.free();
         }
       });
 
@@ -122,19 +106,11 @@ export function denoResolverPlugin(
           return undefined;
         }
 
-        // We can then resolve the specifier relative to the referrer URL. If
-        // an import map is specified, we use that to resolve the specifier.
-        let resolved: URL;
-        if (importMap !== null) {
-          const res = resolveModuleSpecifier(
-            args.path,
-            importMap,
-            new URL(referrer),
-          );
-          resolved = new URL(res);
-        } else {
-          resolved = new URL(args.path, referrer);
-        }
+        // We can then resolve the specifier relative to the referrer URL, using
+        // the workspace resolver.
+        const resolved = new URL(
+          resolver!.resolve(args.path, referrer.href),
+        );
 
         for (const externalRegexp of externalRegexps) {
           if (externalRegexp.test(resolved.href)) {

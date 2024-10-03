@@ -5,3 +5,4 @@ dist/
 /target
 src/wasm/loader.generated.d.ts
 src/wasm/loader.generated.js
+src/wasm/snippets/
