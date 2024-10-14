@@ -726,6 +726,25 @@ Deno.test("remote http redirects are de-duped", async (t) => {
   });
 });
 
+Deno.test("workspace importing between packages", async (t) => {
+  await testLoader(t, LOADERS, async (esbuild, loader) => {
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [...denoPlugins({ loader })],
+      bundle: true,
+      entryPoints: ["./testdata/workspace/a/main.ts"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { hello } = await import(dataURL);
+    assertEquals(hello, "world");
+  });
+});
+
 const importMapURL =
   new URL("./testdata/import_map.json", import.meta.url).href;
 

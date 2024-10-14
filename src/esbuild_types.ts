@@ -51,7 +51,7 @@ export interface PluginBuild {
   resolve(path: string, options?: ResolveOptions): Promise<ResolveResult>;
 
   /** Documentation: https://esbuild.github.io/plugins/#on-start */
-  onStart(callback: () => Promise<void>): void;
+  onStart(callback: () => void | Promise<void>): void;
 
   /** Documentation: https://esbuild.github.io/plugins/#on-resolve */
   onResolve(
@@ -74,6 +74,11 @@ export interface BuildOptions {
   external?: string[];
   /** Documentation: https://esbuild.github.io/api/#working-directory */
   absWorkingDir?: string;
+  /** Documentation: https://esbuild.github.io/api/#entry-points */
+  entryPoints?: string[] | Record<string, string> | {
+    in: string;
+    out: string;
+  }[];
 }
 
 /** Documentation: https://esbuild.github.io/plugins/#resolve-options */
