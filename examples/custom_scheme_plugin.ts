@@ -1,7 +1,7 @@
 import * as esbuild from "https://deno.land/x/esbuild@v0.19.11/mod.js";
 import { denoPlugins } from "../mod.ts";
 
-import { get } from "https://deno.land/x/emoji@0.2.1/mod.ts";
+import { get } from "https://deno.land/x/emoji@0.3.0/mod.ts";
 
 const EMOJI_PLUGIN: esbuild.Plugin = {
   name: "emoji",
