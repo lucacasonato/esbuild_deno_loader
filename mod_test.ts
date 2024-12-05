@@ -1018,6 +1018,7 @@ Deno.test("externals", async (t) => {
     const output = res.outputFiles[0];
     assertStringIncludes(output.text, "foo:bar");
     assertStringIncludes(output.text, "foo:baz/bar");
+    assertStringIncludes(output.text, "bar");
   });
 });
 
