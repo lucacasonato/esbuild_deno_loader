@@ -106,20 +106,20 @@ export function denoResolverPlugin(
           return undefined;
         }
 
+        for (const externalRegexp of externalRegexps) {
+          if (externalRegexp.test(args.path)) {
+            return {
+              path: args.path,
+              external: true,
+            };
+          }
+        }
+
         // We can then resolve the specifier relative to the referrer URL, using
         // the workspace resolver.
         const resolved = new URL(
           resolver!.resolve(args.path, referrer.href),
         );
-
-        for (const externalRegexp of externalRegexps) {
-          if (externalRegexp.test(resolved.href)) {
-            return {
-              path: resolved.href,
-              external: true,
-            };
-          }
-        }
 
         // Now pass the resolved specifier back into the resolver, for a second
         // pass. Now plugins can perform any resolution they want on the fully
