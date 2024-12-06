@@ -48,7 +48,7 @@ jobs:
         run: deno lint
 
       - name: Run tests
-        run: deno test -A --trace-leaks
+        run: deno test -A
 
       - name: Dry run publishing
         if: runner.os == 'Linux' && matrix.deno == 'canary'
