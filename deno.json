@@ -1,6 +1,6 @@
 {
   "name": "@luca/esbuild-deno-loader",
-  "version": "0.11.0",
+  "version": "0.11.1",
   "exports": {
     ".": "./mod.ts",
     "./esbuild_types": "./src/esbuild_types.ts"
