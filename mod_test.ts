@@ -1,5 +1,5 @@
-import * as esbuildNative from "https://deno.land/x/esbuild@v0.20.2/mod.js";
-import * as esbuildWasm from "https://deno.land/x/esbuild@v0.20.2/wasm.js";
+import * as esbuildNative from "https://deno.land/x/esbuild@v0.24.0/mod.js";
+import * as esbuildWasm from "https://deno.land/x/esbuild@v0.24.0/wasm.js";
 import { join } from "@std/path";
 import { assert, assertEquals, assertStringIncludes } from "@std/assert";
 import {
