@@ -1,6 +1,7 @@
 import type * as esbuild from "./esbuild_types.ts";
 import { toFileUrl } from "@std/path";
 import {
+  DATA_FILTER,
   findWorkspace,
   isNodeModulesResolution,
   urlToEsbuildResolution,
@@ -81,8 +82,11 @@ export function denoResolverPlugin(
       });
 
       build.onResolve({ filter: /.*/ }, async function onResolve(args) {
-        // Pass through any node_modules internal resolution.
-        if (isNodeModulesResolution(args)) {
+        // Pass through if any node_modules internal resolution or if this plugin
+        // has already handled the resolution.
+        if (
+          args.pluginData?.denoResolverPlugin || isNodeModulesResolution(args)
+        ) {
           return undefined;
         }
 
@@ -106,10 +110,11 @@ export function denoResolverPlugin(
           return undefined;
         }
 
+        const { path: originalPath, ...resolveArgs } = args;
         for (const externalRegexp of externalRegexps) {
-          if (externalRegexp.test(args.path)) {
+          if (externalRegexp.test(originalPath)) {
             return {
-              path: args.path,
+              path: originalPath,
               external: true,
             };
           }
@@ -118,16 +123,25 @@ export function denoResolverPlugin(
         // We can then resolve the specifier relative to the referrer URL, using
         // the workspace resolver.
         const resolved = new URL(
-          resolver!.resolve(args.path, referrer.href),
+          resolver!.resolve(originalPath, referrer.href),
         );
 
         // Now pass the resolved specifier back into the resolver, for a second
         // pass. Now plugins can perform any resolution they want on the fully
         // resolved specifier.
         const { path, namespace } = urlToEsbuildResolution(resolved);
+        if (namespace === "data" && !DATA_FILTER.test(path)) {
+          return undefined;
+        }
+
+        // Mark that this plugin handled the resolution.
+        const pluginData = args.pluginData ?? {};
+        pluginData.denoResolverPlugin = true;
+
         const res = await build.resolve(path, {
+          ...resolveArgs,
           namespace,
-          kind: args.kind,
+          pluginData,
         });
         return res;
       });
