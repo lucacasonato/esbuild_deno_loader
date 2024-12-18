@@ -949,7 +949,51 @@ const CSS_PLUGIN: esbuildNative.Plugin = {
   },
 };
 
-Deno.test("css plugin", async (t) => {
+Deno.test("css plugin, entrypoint", async (t) => {
+  +await testLoader(t, LOADERS, async (esbuild, loader) => {
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [
+        ...denoPlugins({ loader }),
+        CSS_PLUGIN,
+      ],
+      entryPoints: ["./testdata/basic.css"],
+      bundle: true,
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: css } = await import(dataURL);
+    assertEquals(css, await Deno.readTextFile("./testdata/basic.css"));
+  });
+});
+
+Deno.test("css plugin, entrypoint with import map", async (t) => {
+  +await testLoader(t, LOADERS, async (esbuild, loader) => {
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [
+        ...denoPlugins({ loader }),
+        CSS_PLUGIN,
+      ],
+      entryPoints: ["$testdata/basic.css"],
+      bundle: true,
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: css } = await import(dataURL);
+    assertEquals(css, await Deno.readTextFile("./testdata/basic.css"));
+  });
+});
+
+Deno.test("css plugin, import from ts", async (t) => {
   +await testLoader(t, LOADERS, async (esbuild, loader) => {
     const res = await esbuild.build({
       ...DEFAULT_OPTS,
@@ -971,7 +1015,7 @@ Deno.test("css plugin", async (t) => {
   });
 });
 
-Deno.test("css plugin, finds file in import map", async (t) => {
+Deno.test("css plugin, import from ts with import map", async (t) => {
   +await testLoader(t, LOADERS, async (esbuild, loader) => {
     const res = await esbuild.build({
       ...DEFAULT_OPTS,
