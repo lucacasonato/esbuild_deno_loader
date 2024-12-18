@@ -935,10 +935,10 @@ Deno.test("custom plugin for scheme with import map", async (t) => {
   });
 });
 
-const TXT_PLUGIN: esbuildNative.Plugin = {
+const CSS_PLUGIN: esbuildNative.Plugin = {
   name: "computed",
   setup(build) {
-    build.onLoad({ filter: /.*\.txt$/, namespace: "file" }, async (args) => {
+    build.onLoad({ filter: /.*\.css$/, namespace: "file" }, async (args) => {
       const url = esbuildResolutionToURL(args);
       const file = await Deno.readTextFile(new URL(url));
       return {
@@ -949,16 +949,16 @@ const TXT_PLUGIN: esbuildNative.Plugin = {
   },
 };
 
-Deno.test("txt plugin", async (t) => {
+Deno.test("css plugin, entrypoint", async (t) => {
   +await testLoader(t, LOADERS, async (esbuild, loader) => {
     const res = await esbuild.build({
       ...DEFAULT_OPTS,
       plugins: [
-        denoResolverPlugin(),
-        TXT_PLUGIN,
-        denoLoaderPlugin({ loader }),
+        ...denoPlugins({ loader }),
+        CSS_PLUGIN,
       ],
-      entryPoints: ["./testdata/hello.txt"],
+      entryPoints: ["./testdata/basic.css"],
+      bundle: true,
     });
     assertEquals(res.warnings, []);
     assertEquals(res.errors, []);
@@ -966,8 +966,74 @@ Deno.test("txt plugin", async (t) => {
     const output = res.outputFiles[0];
     assertEquals(output.path, "<stdout>");
     const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
-    const { default: hello } = await import(dataURL);
-    assertEquals(hello, "Hello World!");
+    const { default: css } = await import(dataURL);
+    assertEquals(css, await Deno.readTextFile("./testdata/basic.css"));
+  });
+});
+
+Deno.test("css plugin, entrypoint with import map", async (t) => {
+  +await testLoader(t, LOADERS, async (esbuild, loader) => {
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [
+        ...denoPlugins({ loader }),
+        CSS_PLUGIN,
+      ],
+      entryPoints: ["$testdata/basic.css"],
+      bundle: true,
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: css } = await import(dataURL);
+    assertEquals(css, await Deno.readTextFile("./testdata/basic.css"));
+  });
+});
+
+Deno.test("css plugin, import from ts", async (t) => {
+  +await testLoader(t, LOADERS, async (esbuild, loader) => {
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [
+        ...denoPlugins({ loader }),
+        CSS_PLUGIN,
+      ],
+      entryPoints: ["./testdata/css.ts"],
+      bundle: true,
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: css } = await import(dataURL);
+    assertEquals(css, await Deno.readTextFile("./testdata/basic.css"));
+  });
+});
+
+Deno.test("css plugin, import from ts with import map", async (t) => {
+  +await testLoader(t, LOADERS, async (esbuild, loader) => {
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [
+        ...denoPlugins({ loader }),
+        CSS_PLUGIN,
+      ],
+      entryPoints: ["./testdata/css-mapped.ts"],
+      bundle: true,
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: css } = await import(dataURL);
+    assertEquals(css, await Deno.readTextFile("./testdata/basic.css"));
   });
 });
 
@@ -1124,5 +1190,57 @@ Deno.test("jsr specifiers - no lockfile", async (t) => {
       `data:application/javascript;base64,${btoa(output.text)}`
     );
     assertEquals(ns.join("a", "b"), join("a", "b"));
+  });
+});
+
+Deno.test("ignores local css, uses default loader", async (t) => {
+  await testLoader(t, LOADERS, async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      format: undefined,
+      plugins: [...denoPlugins({ loader })],
+      entryPoints: ["./testdata/basic.css"],
+      bundle: true,
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    assertEquals(
+      output.text,
+      `\
+/* testdata/basic.css */
+.test {
+  color: red;
+}
+.test-svg {
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%3E%3Ccircle%20r%3D'10'%20cx%3D'10'%20cy%3D'10'%20fill%3D'red'%20%2F%3E%3C%2Fsvg%3E");
+}
+`,
+    );
+  });
+});
+
+Deno.test("ignores local txt, uses default loader", async (t) => {
+  await testLoader(t, LOADERS, async (esbuild, loader) => {
+    if (esbuild === PLATFORMS.wasm) return;
+    const res = await esbuild.build({
+      ...DEFAULT_OPTS,
+      plugins: [
+        ...denoPlugins({ loader }),
+      ],
+      entryPoints: ["./testdata/hello.txt"],
+    });
+    assertEquals(res.warnings, []);
+    assertEquals(res.errors, []);
+    assertEquals(res.outputFiles.length, 1);
+    const output = res.outputFiles[0];
+    assertEquals(output.path, "<stdout>");
+    const dataURL = `data:application/javascript;base64,${btoa(output.text)}`;
+    const { default: hello } = await import(dataURL);
+    assertEquals(hello, "Hello World!");
   });
 });

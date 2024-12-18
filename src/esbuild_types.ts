@@ -87,6 +87,8 @@ export interface ResolveOptions {
   resolveDir?: string;
   namespace?: string;
   kind?: ImportKind;
+  // deno-lint-ignore no-explicit-any
+  pluginData: any;
 }
 
 /** Documentation: https://esbuild.github.io/plugins/#resolve-results */
@@ -108,6 +110,8 @@ export interface OnResolveArgs {
   namespace: string;
   resolveDir: string;
   kind: ImportKind;
+  // deno-lint-ignore no-explicit-any
+  pluginData: any;
 }
 
 export interface OnResolveResult {

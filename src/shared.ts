@@ -385,3 +385,7 @@ export function isNodeModulesResolution(args: esbuild.OnResolveArgs) {
       isInNodeModules(args.importer))
   );
 }
+
+export const EXTENSION_FILTER = /\.(ts|tsx|js|jsx|mts|mjs|json|wasm)$/;
+export const DATA_FILTER =
+  /^(application|text)\/(typescript|javascript|x-typescript|x-javascript|ecmascript|jsx|tsx|json|wasm|octet-stream|node)/;

@@ -10,7 +10,8 @@
     "@std/bytes": "jsr:@std/bytes@^1.0.2",
     "@std/encoding": "jsr:@std/encoding@^1.0.5",
     "@std/fs": "jsr:@std/fs@^1.0.4",
-    "@std/path": "jsr:@std/path@^1.0.6"
+    "@std/path": "jsr:@std/path@^1.0.6",
+    "$testdata/": "./testdata/"
   },
   "lock": false,
   "tasks": {
@@ -19,8 +20,9 @@
     "ok": "deno fmt --check && deno lint && deno task check:types && deno task test",
     "wasmbuild": "deno run -A jsr:@deno/wasmbuild@0.17.2 --sync --out src/wasm"
   },
-  "fmt": { "exclude": ["dist", "target"] },
-  "lint": { "exclude": ["dist", "target", "testdata"] },
+  "exclude": ["testdata"],
+  "fmt": { "exclude": ["dist", "target", "!testdata"] },
+  "lint": { "exclude": ["dist", "target"] },
   "publish": {
     "exclude": [
       "testdata/",

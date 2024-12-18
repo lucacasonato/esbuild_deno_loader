@@ -4,7 +4,9 @@ import { NativeLoader } from "./loader_native.ts";
 import { PortableLoader } from "./loader_portable.ts";
 import { findWorkspace, isInNodeModules } from "./shared.ts";
 import {
+  DATA_FILTER,
   esbuildResolutionToURL,
+  EXTENSION_FILTER,
   isNodeModulesResolution,
   type Loader,
   urlToEsbuildResolution,
@@ -263,9 +265,13 @@ export function denoLoaderPlugin(
         }
       });
 
+      const CSS_IMPORT_KIND = /^(import-rule|composes-from|url-token)$/;
       async function onResolve(
         args: esbuild.OnResolveArgs,
       ): Promise<esbuild.OnResolveResult | undefined> {
+        if (CSS_IMPORT_KIND.test(args.kind)) {
+          return undefined;
+        }
         if (isNodeModulesResolution(args)) {
           if (
             BUILTIN_NODE_MODULES.has(args.path) ||
@@ -325,6 +331,7 @@ export function denoLoaderPlugin(
                 kind: args.kind,
                 resolveDir,
                 importer: args.importer,
+                pluginData: args.pluginData,
               });
             }
           } else {
@@ -363,6 +370,7 @@ export function denoLoaderPlugin(
               kind: args.kind,
               resolveDir,
               importer: args.importer,
+              pluginData: args.pluginData,
             });
           }
           case "node": {
@@ -392,10 +400,11 @@ export function denoLoaderPlugin(
         return loaderImpl!.loadEsm(specifier);
       }
       // TODO(lucacasonato): once https://github.com/evanw/esbuild/pull/2968 is fixed, remove the catch all "file" handler
-      build.onLoad({ filter: /.*/, namespace: "file" }, onLoad);
+      build.onLoad({ filter: EXTENSION_FILTER, namespace: "file" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "http" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "https" }, onLoad);
       build.onLoad({ filter: /.*/, namespace: "data" }, onLoad);
+      build.onLoad({ filter: DATA_FILTER, namespace: "data" }, onLoad);
     },
   };
 }
